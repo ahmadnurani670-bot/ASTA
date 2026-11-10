@@ -1369,5 +1369,36 @@ function pasang() {
 }
 pasang();
 </script>
+  <script>
+// Deteksi apakah berjalan di Android wrapper
+const isAndroidWrapper = () => typeof window.AstaAndroid !== 'undefined';
+
+if (isAndroidWrapper()) {
+  // Override fungsi alarm jika di Android wrapper
+  const originalBuatPengingatWeb = window.buatPengingatWeb;
+  window.buatPengingatWeb = function(jam, menit, pesan) {
+    window.AstaAndroid.setAlarm(jam, menit, pesan);
+    const jamStr = String(jam).padStart(2, '0');
+    const menStr = String(menit).padStart(2, '0');
+    return `✅ Alarm native diatur: ${jamStr}:${menStr}\n"${pesan}"`;
+  };
+  
+  const originalBuatTimerWeb = window.buatTimerWeb;
+  window.buatTimerWeb = function(detik, pesan) {
+    window.AstaAndroid.setTimer(detik, pesan);
+    return `⏱️ Timer native ${detik} detik dimulai\n"${pesan}"`;
+  };
+  
+  const originalBukaBrowser = window.bukaBrowser;
+  window.bukaBrowser = function(url) {
+    window.AstaAndroid.bukaBrowser(url);
+    return `🌐 Membuka ${url} di browser`;
+  };
+  
+  console.log('✅ Asta berjalan di Android wrapper — fitur native aktif');
+} else {
+  console.log('ℹ️ Asta berjalan di browser — fitur native tidak tersedia');
+}
+</script>
 </body>
 </html>
