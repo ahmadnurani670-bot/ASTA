@@ -1,0 +1,1373 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#030a14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Asta</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root {
+  --bg: #030a14;
+  --panel: #07121f;
+  --panel2: #0a1a2b;
+  --garis: #0f4a78;
+  --garis-halus: #123a5c;
+  --cyan: #33d6ff;
+  --biru: #1f8fff;
+  --amber: #ffb347;
+  --hijau: #39ff88;
+  --merah: #ff7b8f;
+  --teks: #d6ebff;
+  --redup: #7f9bb5;
+  --mono: ui-monospace, "Roboto Mono", "SFMono-Regular", Consolas, monospace;
+  --ui: system-ui, "Roboto", "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--teks); font-family: var(--ui); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+.app {
+  height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(180px, 34dvh) minmax(0, 1fr) auto;
+  overflow: hidden;
+  grid-template-areas: "kepala" "pusat" "obrolan" "kaki";
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+@media (min-width: 900px) and (orientation: landscape), (min-width: 1100px) {
+  .app {
+    grid-template-columns: minmax(320px, 42%) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "kepala kepala" "pusat obrolan" "pusat kaki";
+  }
+}
+
+/* Kepala */
+.kepala {
+  grid-area: kepala; display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; row-gap: 8px;
+  padding: 10px 12px; border-bottom: 1px solid var(--garis-halus);
+}
+.ver { font-size: 11px; font-weight: 400; letter-spacing: 0; margin-left: 8px; color: var(--redup); }
+.pita {
+  order: 10; flex-basis: 100%; display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  border: 1px solid var(--amber); border-radius: 8px; color: var(--amber); font-size: 14px; line-height: 1.35;
+}
+.pita span { flex: 1; min-width: 0; }
+.pita .btn { min-height: 40px; padding: 0 14px; color: var(--teks); }
+.pita .tutup { min-height: 40px; width: 40px; padding: 0; font-size: 20px; line-height: 1; }
+.merek { font-family: var(--mono); font-weight: 700; font-size: 20px; letter-spacing: .24em; color: var(--cyan); margin-right: auto; }
+@media (max-width: 520px) { #teksJaringan { display: none; } .jam { min-width: 0; } }
+@media (max-width: 380px) { .status-jaringan { display: none; } }
+.status-jaringan { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; color: var(--redup); }
+.titik { width: 8px; height: 8px; border-radius: 50%; background: var(--redup); }
+.titik.on { background: var(--hijau); box-shadow: 0 0 8px var(--hijau); }
+.titik.off { background: var(--merah); }
+.jam { font-family: var(--mono); font-size: 14px; color: var(--teks); min-width: 4.2em; text-align: right; }
+.ikon-tombol {
+  width: 44px; height: 44px; display: grid; place-items: center; background: transparent;
+  border: 1px solid var(--garis-halus); border-radius: 8px; color: var(--teks);
+}
+.ikon-tombol:hover { border-color: var(--garis); background: var(--panel); }
+.ikon-tombol[aria-pressed="false"] { color: var(--redup); }
+svg.ik { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Pusat: orb dan mode */
+.pusat { grid-area: pusat; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.pusat canvas { flex: 1; min-height: 0; width: 100%; display: block; }
+.mode {
+  display: flex; gap: 8px; padding: 8px 12px 12px; overflow-x: auto; scrollbar-width: none;
+  flex-wrap: nowrap;
+}
+.mode::-webkit-scrollbar { display: none; }
+@media (min-width: 900px) and (orientation: landscape), (min-width: 1100px) { .mode { flex-wrap: wrap; justify-content: center; } }
+.chip {
+  flex: none; min-height: 40px; padding: 0 14px; border-radius: 20px; background: var(--panel);
+  border: 1px solid var(--garis-halus); color: var(--teks); font-size: 14px;
+}
+.chip[aria-checked="true"] { border-color: var(--cyan); color: var(--cyan); background: #08243a; }
+
+/* Obrolan */
+.obrolan { grid-area: obrolan; min-height: 0; min-width: 0; display: flex; flex-direction: column; border-top: 1px solid var(--garis-halus); }
+@media (min-width: 900px) and (orientation: landscape), (min-width: 1100px) { .obrolan { border-top: 0; } }
+#log { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; scroll-behavior: smooth; }
+.pesan { max-width: 92%; padding: 10px 13px; border-radius: 10px; line-height: 1.5; font-size: 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pesan.saya { align-self: flex-end; background: #0a2740; border: 1px solid #12426b; }
+.pesan.asta { align-self: flex-start; background: var(--panel); border: 1px solid var(--garis-halus); }
+.pesan.info { align-self: center; max-width: 100%; font-family: var(--mono); font-size: 12.5px; color: var(--redup); background: none; padding: 2px 6px; text-align: center; }
+.pesan.galat { color: var(--merah); }
+.pesan .mini { display: block; max-width: 160px; max-height: 120px; border-radius: 6px; margin-bottom: 6px; }
+a.tautan {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px;
+  border: 1px solid var(--amber); color: var(--amber); border-radius: 8px; text-decoration: none; font-size: 15px;
+  max-width: 92%; overflow-wrap: anywhere;
+}
+
+/* Kaki: lampiran dan input */
+.kaki { grid-area: kaki; min-width: 0; padding: 8px 12px 12px; border-top: 1px solid var(--garis-halus); background: var(--bg); }
+.lampiran { display: none; align-items: center; gap: 10px; margin-bottom: 8px; padding: 6px 8px; border: 1px solid var(--amber); border-radius: 8px; }
+.lampiran.tampil { display: flex; }
+.lampiran img { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; }
+.lampiran .ket { flex: 1; min-width: 0; font-family: var(--mono); font-size: 12.5px; color: var(--amber); overflow-wrap: anywhere; }
+.lampiran button { min-height: 36px; padding: 0 10px; background: none; border: 1px solid var(--garis-halus); border-radius: 6px; }
+.baris-input { display: flex; align-items: flex-end; gap: 8px; }
+#teks {
+  flex: 1; min-width: 0; resize: none; max-height: 120px; min-height: 44px; padding: 10px 12px; line-height: 1.4;
+  background: var(--panel); border: 1px solid var(--garis); border-radius: 10px; color: var(--teks); font-size: 16px;
+}
+#teks::placeholder { color: var(--redup); }
+.kirim { width: 48px; height: 44px; display: grid; place-items: center; background: #0f4a78; border: 1px solid var(--biru); border-radius: 10px; }
+.kirim:disabled { opacity: .45; }
+#tMik.dengar { border-color: var(--hijau); color: var(--hijau); box-shadow: 0 0 10px rgba(57,255,136,.35); }
+
+/* Dialog */
+dialog { background: var(--panel); color: var(--teks); border: 1px solid var(--garis); border-radius: 12px; padding: 0; width: min(520px, 94vw); max-height: 90dvh; }
+dialog::backdrop { background: rgba(0,0,0,.7); }
+.dlg-isi { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; max-height: 90dvh; }
+.dlg-kepala { display: flex; align-items: center; justify-content: space-between; }
+.dlg-kepala h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.bidang { display: flex; flex-direction: column; gap: 6px; }
+.bidang label, .bidang .nama { font-size: 14px; color: var(--redup); }
+.bidang input[type=text], .bidang input[type=password], .bidang select {
+  min-height: 44px; padding: 8px 12px; background: var(--bg); border: 1px solid var(--garis); border-radius: 8px; color: var(--teks); font-size: 16px;
+}
+.bidang small { color: var(--redup); font-size: 13px; line-height: 1.45; }
+.bidang a { color: var(--cyan); }
+.baris { display: flex; gap: 8px; align-items: center; }
+.baris > input { flex: 1; min-width: 0; }
+.sakelar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; }
+.sakelar input { width: 22px; height: 22px; accent-color: var(--cyan); }
+.btn { min-height: 44px; padding: 0 16px; border-radius: 8px; background: var(--panel2); border: 1px solid var(--garis); }
+.btn:hover { border-color: var(--cyan); }
+.btn.bahaya { border-color: #6b2b38; color: var(--merah); }
+.peringatan { padding: 10px 12px; border: 1px solid var(--amber); border-radius: 8px; color: var(--amber); font-size: 13.5px; line-height: 1.45; }
+.catatan-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--garis-halus); }
+.catatan-item .isi { flex: 1; overflow-wrap: anywhere; white-space: pre-wrap; }
+.catatan-item time { display: block; font-family: var(--mono); font-size: 12px; color: var(--redup); margin-bottom: 2px; }
+.kosong { color: var(--redup); font-size: 15px; padding: 8px 0; }
+@media (prefers-reduced-motion: reduce) { #log { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="kepala">
+    <div class="merek" aria-label="Asta">ASTA<span class="ver" id="verKecil"></span></div>
+    <div class="status-jaringan"><span class="titik" id="titik"></span><span id="teksJaringan">...</span></div>
+    <div class="jam" id="jam">--:--</div>
+    <button class="ikon-tombol" id="tSuara" aria-pressed="true" aria-label="Suara">
+      <svg class="ik" id="ikSuara" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+    </button>
+    <button class="ikon-tombol" id="tCatatan" aria-label="Catatan">
+      <svg class="ik" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+    </button>
+    <button class="ikon-tombol" id="tPengingat" aria-label="Pengingat" hidden>
+      <svg class="ik" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M5 3.5L2 6.5M19 3.5l3 3"/></svg>
+    </button>
+    <button class="ikon-tombol" id="tPengaturan" aria-label="Pengaturan">
+      <svg class="ik" viewBox="0 0 24 24"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+    </button>
+    <div class="pita" id="pita" hidden>
+      <span id="pitaTeks"></span>
+      <button class="btn" id="pitaAksi" type="button"></button>
+      <button class="btn tutup" id="pitaTutup" type="button" aria-label="Tutup">&times;</button>
+    </div>
+  </header>
+
+  <section class="pusat">
+    <canvas id="orb" aria-label="Indikator status Asta"></canvas>
+    <div class="mode" id="mode" role="radiogroup" aria-label="Mode Asta"></div>
+  </section>
+
+  <main class="obrolan"><div id="log" aria-live="polite"></div></main>
+
+  <footer class="kaki">
+    <div class="lampiran" id="lampiran">
+      <img id="lampiranGambar" alt="" hidden>
+      <div class="ket" id="lampiranKet"></div>
+      <button id="lampiranHapus" type="button">Hapus</button>
+    </div>
+    <div class="baris-input">
+      <button class="ikon-tombol" id="tLampir" aria-label="Lampirkan file">
+        <svg class="ik" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+      </button>
+      <button class="ikon-tombol" id="tKamera" aria-label="Ambil foto">
+        <svg class="ik" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      </button>
+      <button class="ikon-tombol" id="tMik" aria-label="Bicara">
+        <svg class="ik" viewBox="0 0 24 24"><rect x="9" y="1" width="6" height="11" rx="3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+      </button>
+      <textarea id="teks" rows="1" placeholder="Ketik pesan" aria-label="Pesan"></textarea>
+      <button class="kirim" id="tKirim" aria-label="Kirim">
+        <svg class="ik" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      </button>
+    </div>
+  </footer>
+</div>
+
+<input type="file" id="berkas" hidden accept="image/*,application/pdf,.pdf,.txt,.md,.csv,text/plain">
+<input type="file" id="berkasKamera" hidden accept="image/*" capture="environment">
+
+<dialog id="dlgPengaturan">
+  <div class="dlg-isi">
+    <div class="dlg-kepala"><h2>Pengaturan</h2><button class="btn" id="tutupPengaturan" type="button">Selesai</button></div>
+    <div class="peringatan" id="infoAwal" hidden>Masukkan kunci API Gemini dulu supaya Asta bisa menjawab. Kunci hanya disimpan di ponsel ini.</div>
+
+    <div class="bidang">
+      <label for="kunci">Kunci API Gemini</label>
+      <div class="baris">
+        <input type="password" id="kunci" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Tempel kunci di sini">
+        <button class="btn" id="lihatKunci" type="button">Lihat</button>
+      </div>
+      <small>Buat gratis di <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. Kunci tersimpan hanya di browser ponsel ini dan tidak ikut terunggah ke mana pun selain ke Google saat Asta menjawab.</small>
+    </div>
+
+    <div class="bidang">
+      <label for="nama">Asta memanggilmu dengan</label>
+      <input type="text" id="nama" autocomplete="off" placeholder="Contoh: nama atau sebutan pilihanmu">
+      <small>Kosongkan kalau tidak mau disapa dengan sebutan khusus.</small>
+    </div>
+
+    <div class="bidang">
+      <label for="suaraPilih">Suara Asta</label>
+      <select id="suaraPilih"></select>
+      <small id="infoSuara"></small>
+    </div>
+
+    <div class="bidang">
+      <label for="laju">Kecepatan bicara</label>
+      <input type="range" id="laju" min="0.7" max="1.4" step="0.05">
+    </div>
+
+    <div class="sakelar"><label for="otoKirim">Kirim otomatis setelah selesai bicara</label><input type="checkbox" id="otoKirim"></div>
+
+    <div class="bidang">
+      <label for="model">Model obrolan</label>
+      <input type="text" id="model" autocapitalize="off" spellcheck="false">
+      <label for="modelFile">Model untuk foto dan file</label>
+      <input type="text" id="modelFile" autocapitalize="off" spellcheck="false">
+      <small>Kalau muncul galat soal nama model, ganti dengan nama model terbaru dari AI Studio.</small>
+    </div>
+
+    <div class="bidang">
+      <span class="nama">Sinkronisasi antar perangkat</span>
+      <small>Catatan, ingatan percakapan, sebutan, dan mode disamakan di semua perangkat lewat Gist rahasia di akun GitHub-mu. Isinya dienkripsi dengan sandi di bawah sebelum dikirim, jadi tidak terbaca siapa pun, termasuk GitHub. Kunci API Gemini tidak ikut disinkronkan.</small>
+      <label for="tokenGh">Token GitHub (izin gist)</label>
+      <input type="password" id="tokenGh" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ghp_...">
+      <small><a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Asta%20sinkron" target="_blank" rel="noopener">Buat token</a> (hanya centang gist), lalu salin dan tempel di sini.</small>
+      <label for="sandiSinkron">Sandi sinkron</label>
+      <input type="password" id="sandiSinkron" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Karang sendiri, sama di semua perangkat">
+      <small>Karang sandi ini sendiri. Pakai sandi yang persis sama di setiap perangkat. Kalau lupa, data yang sudah tersinkron tidak bisa dibuka lagi.</small>
+      <label for="sandiUlang">Ulangi sandi (hanya saat pertama kali membuat)</label>
+      <input type="password" id="sandiUlang" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Ketik sandi yang sama sekali lagi">
+      <button class="btn" id="tSinkron" type="button">Sinkronkan sekarang</button>
+      <small id="statusSinkron" aria-live="polite"></small>
+      <button class="btn bahaya" id="tAturUlang" type="button">Atur ulang sinkronisasi</button>
+      <small>Menghapus data sinkron di GitHub (bukan catatan di perangkat ini). Pakai ini kalau lupa sandi atau salah membuat sandi.</small>
+    </div>
+
+    <div class="baris">
+      <button class="btn" id="tesSuara" type="button">Tes suara</button>
+      <button class="btn" id="tesKoneksi" type="button">Tes koneksi</button>
+    </div>
+    <div class="bidang"><small id="hasilTes" aria-live="polite"></small></div>
+    <button class="btn bahaya" id="lupakan" type="button">Lupakan percakapan</button>
+    <div class="peringatan">Di paket gratis Gemini, pesan dan lampiranmu bisa dipakai Google untuk meningkatkan produknya. Hindari mengirim dokumen pribadi atau identitas.</div>
+    <div class="bidang">
+      <span class="nama">Aplikasi</span>
+      <small id="infoVersi"></small>
+      <div class="baris">
+        <button class="btn" id="tPasang" type="button">Pasang aplikasi</button>
+        <button class="btn" id="tCekUpdate" type="button">Periksa pembaruan</button>
+      </div>
+      <small id="statusApp" aria-live="polite"></small>
+    </div>
+    <button class="btn bahaya" id="hapusKunci" type="button">Hapus kunci API dari ponsel ini</button>
+    <small class="kosong" id="versi"></small>
+  </div>
+</dialog>
+
+<dialog id="dlgCatatan">
+  <div class="dlg-isi">
+    <div class="dlg-kepala"><h2>Catatan</h2><button class="btn" id="tutupCatatan" type="button">Tutup</button></div>
+    <div id="daftarCatatan"></div>
+    <div class="baris">
+      <button class="btn" id="salinCatatan" type="button">Salin semua</button>
+      <button class="btn bahaya" id="hapusCatatan" type="button">Hapus semua</button>
+    </div>
+    <small class="kosong">Catatan tersimpan di perangkat ini, dan disamakan ke perangkat lain kalau sinkronisasi aktif. Asta bisa menambah catatan, tetapi tidak bisa membacanya.</small>
+  </div>
+</dialog>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+
+/* ---------- Penyimpanan ---------- */
+const simpan = (k, v) => localStorage.setItem('asta.' + k, JSON.stringify(v));
+const muat = (k, bawaan) => {
+  const v = localStorage.getItem('asta.' + k);
+  if (v === null) return bawaan;
+  try { return JSON.parse(v); } catch { return bawaan; }
+};
+
+// Kunci API hanya boleh berisi karakter ASCII yang terlihat. Karakter tak terlihat
+// (spasi lebar nol, baris baru, dll.) yang ikut tertempel membuat permintaan gagal.
+const bersihkanKunci = (k) => String(k || '').replace(/[^\x21-\x7E]/g, '');
+const ambilKunci = () => bersihkanKunci(muat('kunci', ''));
+const VERSI = '1.6';
+
+/* ---------- Pengaturan dasar ---------- */
+const MAKS_RIWAYAT = 20;
+const BATAS_SUARA = 600;
+const BAWAAN = 'Jelaskan isi lampiran ini. Kalau ini soal, selesaikan langkah demi langkah.';
+const MODE = {
+  'Standar': ['', 'gaya bawaan'],
+  'Singkat': ['Mode singkat: jawab dalam satu kalimat pendek saja.', 'satu kalimat'],
+  'Guru': ['Mode guru: jelaskan konsep langkah demi langkah dengan contoh sederhana, lalu tutup dengan satu pertanyaan latihan. Boleh lebih dari tiga kalimat.', 'penjelasan bertahap'],
+  'Santai': ['Mode santai: bicara akrab seperti teman dekat, boleh bercanda ringan.', 'akrab dan ringan'],
+  'Fokus': ['Mode fokus: langsung ke inti tanpa basa-basi, berikan hanya jawaban dan langkah tindakan yang perlu.', 'langsung ke inti'],
+};
+
+function instruksiSistem() {
+  const nama = String(muat('nama', '')).trim();
+  const tambahan = (MODE[muat('mode', 'Standar')] || MODE.Standar)[0];
+  const sapaan = nama
+    ? 'Panggil pengguna dengan "' + nama + '". Jangan memakai sebutan Nona, Tuan, atau Ma\'am. '
+    : 'Jangan memakai sebutan Nona, Tuan, atau Ma\'am; sapa pengguna tanpa sebutan khusus. ';
+  return 'Kamu adalah Asta, asisten pribadi' + (nama ? ' milik ' + nama : '') + '. ' + sapaan +
+    'Gaya: sopan, tenang, efisien, dengan humor tipis seperti butler yang cerdas. ' +
+    'Bahasa: Indonesia sehari-hari yang rapi. Jawab singkat, maksimal tiga kalimat, kecuali diminta penjelasan panjang. ' +
+    'Jawabanmu dibacakan lewat suara, jadi jangan pakai markdown, tanda bintang, daftar berpoin, atau emoji. ' +
+    'Kamu berjalan di ponsel pengguna, jadi tidak bisa mengontrol komputer. ' +
+    'Jika diminta melakukan sesuatu, pakai alat yang tersedia lalu konfirmasi singkat apa yang sudah dilakukan. ' +
+    'Untuk membuka situs atau mencari video, siapkan tautan dengan buka_situs atau cari_youtube; pengguna yang mengetuknya. ' +
+    'Kamu tidak bisa membaca isi catatan. Pengguna bisa melampirkan foto atau file lewat tombol lampiran. ' +
+    'Jangan mengarang. Jika tidak yakin atau tidak punya alatnya, katakan terus terang.' +
+    (window.AstaNative
+      ? ' Di aplikasi ini kamu bisa mengatur pengingat, alarm, dan timer dengan atur_pengingat, atur_alarm, atur_timer; ' +
+        'semuanya tetap berbunyi walau aplikasi ditutup. Waktu sekarang: ' + sekarangLokal() + ' (waktu setempat). ' +
+        'Hitung waktu dari sekarang dan kirim dalam format yyyy-MM-ddTHH:mm. Kalau waktunya meragukan (misalnya "jam 5" pagi atau sore), tanyakan dulu. ' +
+        'Setelah alat berhasil, konfirmasi singkat. Untuk melihat atau menghapus, pakai daftar_pengingat dan hapus_pengingat.'
+      : '') +
+    (tambahan ? ' ' + tambahan : '');
+}
+function instruksiFile() {
+  return 'Kamu adalah Asta, asisten pribadi. Bahasa Indonesia. Kamu diberi sebuah file atau gambar beserta pertanyaan. ' +
+    'Untuk soal matematika atau sains: jelaskan langkah demi langkah dengan jelas, tulis rumus dengan teks biasa tanpa LaTeX, lalu tutup dengan jawaban akhir. ' +
+    'Jika gambar buram atau soal tidak terbaca jelas, sebutkan bagian yang tidak jelas dan minta foto ulang, jangan menebak.';
+}
+
+/* ---------- Alat yang bisa dipakai AI ---------- */
+const ALAT = [{ functionDeclarations: [
+  { name: 'waktu_sekarang', description: 'Mengembalikan hari, tanggal, dan jam saat ini.' },
+  { name: 'catat', description: 'Menambahkan teks ke daftar catatan pengguna di ponsel ini.',
+    parameters: { type: 'OBJECT', properties: { teks: { type: 'STRING', description: 'Isi catatan.' } }, required: ['teks'] } },
+  { name: 'buka_catatan', description: 'Membuka daftar catatan agar pengguna bisa membacanya sendiri.' },
+  { name: 'buka_situs', description: 'Menyiapkan tautan ke sebuah situs (harus diawali https://). Pengguna yang mengetuk tautannya.',
+    parameters: { type: 'OBJECT', properties: { url: { type: 'STRING', description: 'Alamat situs, diawali https://' } }, required: ['url'] } },
+  { name: 'cari_youtube', description: 'Menyiapkan tautan hasil pencarian YouTube untuk lagu atau video. Pengguna yang mengetuk tautannya.',
+    parameters: { type: 'OBJECT', properties: { judul: { type: 'STRING', description: 'Judul lagu atau video.' } }, required: ['judul'] } },
+] }];
+
+if (window.AstaNative) {
+  ALAT[0].functionDeclarations.push(
+    { name: 'atur_pengingat', description: 'Mengatur pengingat sekali pada waktu tertentu di ponsel ini. Tetap berbunyi walau aplikasi ditutup.',
+      parameters: { type: 'OBJECT', properties: {
+        pesan: { type: 'STRING', description: 'Isi pengingat, mis. minum obat.' },
+        waktu: { type: 'STRING', description: 'Waktu setempat format yyyy-MM-ddTHH:mm, mis. 2026-11-09T17:00.' } }, required: ['pesan', 'waktu'] } },
+    { name: 'atur_alarm', description: 'Mengatur alarm pada jam tertentu, sekali atau berulang.',
+      parameters: { type: 'OBJECT', properties: {
+        jam: { type: 'STRING', description: 'Jam format HH:mm (24 jam), mis. 06:30.' },
+        pesan: { type: 'STRING', description: 'Label alarm, boleh kosong.' },
+        ulang: { type: 'STRING', description: 'Kosong atau "sekali" untuk sekali; "harian"; "hari kerja"; "akhir pekan"; atau nama hari dipisah koma, mis. "senin,rabu".' } }, required: ['jam'] } },
+    { name: 'atur_timer', description: 'Memulai timer hitung mundur.',
+      parameters: { type: 'OBJECT', properties: {
+        detik: { type: 'NUMBER', description: 'Durasi dalam detik.' },
+        label: { type: 'STRING', description: 'Label timer, boleh kosong.' } }, required: ['detik'] } },
+    { name: 'daftar_pengingat', description: 'Menampilkan semua pengingat, alarm, dan timer yang aktif beserta nomornya.' },
+    { name: 'hapus_pengingat', description: 'Menghapus pengingat, alarm, atau timer berdasarkan nomor, atau semua.',
+      parameters: { type: 'OBJECT', properties: {
+        nomor: { type: 'STRING', description: 'Nomor dari daftar_pengingat, atau "semua".' } }, required: ['nomor'] } },
+    { name: 'buka_pengingat', description: 'Membuka layar daftar pengingat agar pengguna bisa melihat dan mengelolanya.' },
+  );
+}
+
+const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const dua = (n) => String(n).padStart(2, '0');
+function sekarangLokal() {
+  const n = new Date();
+  return HARI[n.getDay()] + ', ' + n.getFullYear() + '-' + dua(n.getMonth() + 1) + '-' + dua(n.getDate()) + 'T' + dua(n.getHours()) + ':' + dua(n.getMinutes());
+}
+function alatNative(fn, ...a) {
+  if (!window.AstaNative || typeof window.AstaNative[fn] !== 'function') return 'Fitur ini hanya tersedia di aplikasi Asta untuk Android.';
+  try { return String(window.AstaNative[fn](...a)); } catch (e) { return 'Gagal: ' + String((e && e.message) || e).slice(0, 100); }
+}
+
+function tambahTautan(teks, url) {
+  const a = document.createElement('a');
+  a.className = 'tautan'; a.href = url; a.target = '_blank'; a.rel = 'noopener';
+  a.textContent = teks;
+  $('log').appendChild(a); gulir();
+}
+
+function jalankanAlat(nama, args) {
+  switch (nama) {
+    case 'waktu_sekarang': {
+      const n = new Date();
+      return `${HARI[n.getDay()]}, ${n.getDate()} ${BULAN[n.getMonth()]} ${n.getFullYear()}, pukul ${dua(n.getHours())}:${dua(n.getMinutes())}`;
+    }
+    case 'catat': {
+      const teks = String(args.teks || '').trim();
+      if (!teks) return 'Teks catatan kosong.';
+      const daftar = muat('catatan', []);
+      const t = Date.now();
+      daftar.push({ id: 'n' + t + '-' + Math.random().toString(36).slice(2, 8), t, teks });
+      simpan('catatan', daftar);
+      jadwalkanSinkron();
+      return 'Sudah dicatat.';
+    }
+    case 'buka_catatan':
+      setTimeout(bukaCatatan, 50);
+      return 'Catatan dibuka di layar pengguna.';
+    case 'buka_situs': {
+      const url = String(args.url || '');
+      if (!/^https:\/\//i.test(url)) return 'Ditolak: hanya alamat https yang boleh dibuka.';
+      tambahTautan('Buka ' + url.replace(/^https:\/\//i, '').slice(0, 60), url);
+      return 'Tautan sudah disiapkan; pengguna tinggal mengetuknya.';
+    }
+    case 'cari_youtube': {
+      const judul = String(args.judul || '').trim();
+      if (!judul) return 'Judul kosong.';
+      tambahTautan('Cari di YouTube: ' + judul, 'https://www.youtube.com/results?search_query=' + encodeURIComponent(judul));
+      return 'Tautan pencarian sudah disiapkan; pengguna tinggal mengetuknya.';
+    }
+    case 'atur_pengingat': return alatNative('aturPengingat', String(args.pesan || ''), String(args.waktu || ''));
+    case 'atur_alarm': return alatNative('aturAlarm', String(args.jam || ''), String(args.pesan || ''), String(args.ulang || ''));
+    case 'atur_timer': return alatNative('aturTimer', String(args.detik || ''), String(args.label || ''));
+    case 'daftar_pengingat': return alatNative('daftar');
+    case 'hapus_pengingat': return alatNative('hapus', String(args.nomor || ''));
+    case 'buka_pengingat': return alatNative('buka');
+    default:
+      return 'Alat tidak dikenal.';
+  }
+}
+
+/* ---------- Gemini ---------- */
+class GalatApi extends Error { constructor(pesan, status) { super(pesan); this.status = status; } }
+const tidur = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function panggilGemini(model, isi) {
+  const kunci = ambilKunci();
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent';
+  for (let percobaan = 0; percobaan < 2; percobaan++) {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': kunci },
+      body: JSON.stringify(isi),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok) return data;
+    if (percobaan === 0 && (r.status === 429 || r.status === 503)) { await tidur(4000); continue; }
+    throw new GalatApi((data.error && data.error.message) || ('HTTP ' + r.status), r.status);
+  }
+}
+
+function ambilTeks(data) {
+  if (data.promptFeedback && data.promptFeedback.blockReason) return 'Permintaan itu diblokir oleh filter keamanan Gemini.';
+  const kand = data.candidates && data.candidates[0];
+  const bagian = (kand && kand.content && kand.content.parts) || [];
+  return bagian.map((p) => p.text || '').join('').trim();
+}
+
+let riwayat = muat('riwayat', []);
+function potongRiwayat() {
+  riwayat = riwayat.slice(-MAKS_RIWAYAT);
+  while (riwayat.length && riwayat[0].role !== 'user') riwayat.shift();
+  simpan('riwayat', riwayat);
+  jadwalkanSinkron();
+}
+
+async function tanyaAI(pesan) {
+  const isi = riwayat.map((r) => ({ role: r.role, parts: [{ text: r.text }] }));
+  isi.push({ role: 'user', parts: [{ text: pesan }] });
+  let jawaban = '';
+  for (let putaran = 0; putaran < 5; putaran++) {
+    const data = await panggilGemini(muat('model', 'gemini-3.5-flash-lite'), {
+      systemInstruction: { parts: [{ text: instruksiSistem() }] },
+      contents: isi,
+      tools: ALAT,
+      generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+    });
+    const kand = data.candidates && data.candidates[0];
+    const konten = kand && kand.content;
+    if (!konten || !konten.parts) { jawaban = ambilTeks(data); break; }
+    const panggilan = konten.parts.filter((p) => p.functionCall);
+    if (!panggilan.length) { jawaban = ambilTeks(data); break; }
+    isi.push(konten);
+    isi.push({ role: 'user', parts: panggilan.map((p) => ({
+      functionResponse: { name: p.functionCall.name, response: { result: jalankanAlat(p.functionCall.name, p.functionCall.args || {}) } },
+    })) });
+  }
+  jawaban = jawaban || 'Baik.';
+  const t = Date.now();
+  riwayat.push({ role: 'user', text: pesan, t }, { role: 'model', text: jawaban, t: t + 1 });
+  potongRiwayat();
+  return jawaban;
+}
+
+async function tanyaFile(l, pertanyaan) {
+  const data = await panggilGemini(muat('modelFile', 'gemini-3.8-flash'), {
+    systemInstruction: { parts: [{ text: instruksiFile() }] },
+    contents: [{ role: 'user', parts: [l.bagian, { text: pertanyaan }] }],
+    generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
+  });
+  const jawaban = ambilTeks(data) || 'Maaf, saya tidak bisa membaca lampiran itu.';
+  const t = Date.now();
+  riwayat.push({ role: 'user', text: `[Lampiran: ${l.nama}] ${pertanyaan}`, t }, { role: 'model', text: jawaban, t: t + 1 });
+  potongRiwayat();
+  return jawaban;
+}
+
+/* ---------- Lampiran ---------- */
+let lampiran = null;
+const bacaBase64 = (blob) => new Promise((res, rej) => {
+  const r = new FileReader();
+  r.onload = () => res(String(r.result).split(',')[1]);
+  r.onerror = () => rej(r.error);
+  r.readAsDataURL(blob);
+});
+
+async function siapkanLampiran(file) {
+  const nama = file.name || 'foto';
+  const tipe = file.type || '';
+  if (file.size > 15 * 1024 * 1024) throw new Error('File terlalu besar (maksimal 15 MB).');
+  if (tipe.startsWith('image/')) {
+    let bmp;
+    try { bmp = await createImageBitmap(file); } catch { throw new Error('Format gambar ini tidak bisa dibuka. Coba JPG atau PNG.'); }
+    const skala = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * skala); c.height = Math.round(bmp.height * skala);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.85));
+    return { nama, bagian: { inlineData: { mimeType: 'image/jpeg', data: await bacaBase64(blob) } },
+      url: URL.createObjectURL(blob), ket: `gambar ${bmp.width} x ${bmp.height}` };
+  }
+  if (tipe === 'application/pdf' || /\.pdf$/i.test(nama)) {
+    return { nama, bagian: { inlineData: { mimeType: 'application/pdf', data: await bacaBase64(file) } }, ket: 'dokumen PDF' };
+  }
+  if (tipe.startsWith('text/') || /\.(txt|md|csv)$/i.test(nama)) {
+    const isi = (await file.text()).slice(0, 30000);
+    return { nama, bagian: { text: 'Isi file ' + nama + ':\n' + isi }, ket: 'file teks' };
+  }
+  throw new Error('Jenis file belum didukung. Pakai foto, PDF, atau file teks.');
+}
+
+function tampilkanLampiran() {
+  const kotak = $('lampiran');
+  kotak.classList.toggle('tampil', !!lampiran);
+  const img = $('lampiranGambar');
+  if (lampiran) {
+    $('lampiranKet').textContent = lampiran.nama + ' · ' + lampiran.ket + ' · akan dikirim ke Gemini';
+    if (lampiran.url) { img.src = lampiran.url; img.hidden = false; } else { img.hidden = true; img.removeAttribute('src'); }
+  } else { img.hidden = true; img.removeAttribute('src'); }
+}
+function hapusLampiran() { lampiran = null; tampilkanLampiran(); }
+
+async function pilihBerkas(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  try { lampiran = await siapkanLampiran(file); tampilkanLampiran(); }
+  catch (e) { info(e.message, true); }
+}
+
+/* ---------- Obrolan ---------- */
+const log = $('log');
+function gulir() { log.scrollTop = log.scrollHeight; }
+function gelembung(kelas, teks) {
+  const d = document.createElement('div');
+  d.className = 'pesan ' + kelas;
+  d.textContent = teks || '';
+  log.appendChild(d); gulir();
+  return d;
+}
+function info(teks, galat) { return gelembung('info' + (galat ? ' galat' : ''), teks); }
+
+function pesanRamah(e) {
+  const m = String((e && e.message) || e);
+  let utama;
+  if (e instanceof TypeError) {
+    if (/ISO-8859-1|invalid value|headers|header/i.test(m)) utama = 'Kunci API berisi karakter yang tidak valid. Hapus lalu ketik atau tempel ulang kuncinya di Pengaturan.';
+    else if (!navigator.onLine) utama = 'Perangkat sedang offline. Periksa koneksi internet.';
+    else utama = 'Tidak bisa menghubungi server Google. Buka Pengaturan lalu tekan Tes koneksi untuk melihat penyebabnya.';
+    return utama + ' (detail: ' + m.slice(0, 120) + ')';
+  }
+  if (e.status === 400 && /api key/i.test(m)) return 'Kunci API tidak valid. Periksa lagi di Pengaturan.';
+  if (e.status === 403) return 'Akses ditolak. Kunci API mungkin salah atau belum aktif.';
+  if (e.status === 404) return 'Model tidak ditemukan. Ganti nama model di Pengaturan.';
+  if (e.status === 429) return 'Batas pemakaian gratis tercapai. Tunggu beberapa menit lalu coba lagi.';
+  return 'Gangguan: ' + m.slice(0, 200);
+}
+
+/* ---------- Suara keluar ---------- */
+const sintesis = 'speechSynthesis' in window ? window.speechSynthesis : null;
+function suaraIndonesia() {
+  if (!sintesis) return [];
+  return sintesis.getVoices().filter((v) => /^id([-_]|$)/i.test(v.lang) || /indonesia/i.test(v.name));
+}
+function pilihSuara() {
+  const nama = muat('suaraNama', '');
+  const daftar = suaraIndonesia();
+  return daftar.find((v) => v.name === nama) || daftar[0] || null;
+}
+function bersihkan(teks) { return teks.replace(/[*#`_]/g, '').trim(); }
+
+function pecah(teks, maks = 140) {
+  const hasil = [];
+  for (let k of teks.trim().split(/(?<=[.!?])\s+/)) {
+    k = k.trim();
+    while (k.length > maks) {
+      let i = Math.max(k.lastIndexOf(',', maks - 1), k.lastIndexOf(';', maks - 1));
+      if (i < 30) i = k.lastIndexOf(' ', maks - 1);
+      if (i < 30) i = maks;
+      const potong = (k[i] === ',' || k[i] === ';') ? i + 1 : i;
+      hasil.push(k.slice(0, potong).trim());
+      k = k.slice(potong).trim();
+    }
+    if (k) hasil.push(k);
+  }
+  const gabung = []; let sisa = '';
+  for (const p of hasil) {
+    sisa = (sisa + ' ' + p).trim();
+    if (sisa.length >= 25) { gabung.push(sisa); sisa = ''; }
+  }
+  if (sisa) { if (gabung.length) gabung[gabung.length - 1] += ' ' + sisa; else gabung.push(sisa); }
+  return gabung;
+}
+
+// Membacakan satu potongan; saatMulai dipanggil tepat saat suara mulai.
+function bicaraPotongan(teks, saatMulai) {
+  return new Promise((selesai) => {
+    let mulai = false;
+    const mulaiSekali = () => { if (!mulai) { mulai = true; saatMulai(); } };
+    const u = new SpeechSynthesisUtterance(teks);
+    u.lang = 'id-ID';
+    const v = pilihSuara(); if (v) u.voice = v;
+    u.rate = Number(muat('laju', 1)) || 1;
+    u.onstart = mulaiSekali;
+    u.onend = () => { mulaiSekali(); selesai(); };
+    u.onerror = () => { mulaiSekali(); selesai(); };
+    setTimeout(mulaiSekali, 2500); // cadangan kalau browser tidak mengirim onstart
+    sintesis.speak(u);
+  });
+}
+
+// Teks muncul per kalimat, tepat saat kalimat itu mulai dibacakan.
+async function tampilkanJawaban(jawaban) {
+  const d = gelembung('asta', '');
+  const suaraAktif = muat('suara', true) && sintesis;
+  if (!suaraAktif) { d.textContent = jawaban; gulir(); return; }
+  sintesis.cancel();
+  if (jawaban.length > BATAS_SUARA) {
+    d.textContent = jawaban; gulir();
+    setKeadaan('bicara');
+    await bicaraPotongan('Jawaban lengkap ada di layar.', () => {});
+    return;
+  }
+  setKeadaan('bicara');
+  let kosong = true;
+  for (const potongan of pecah(bersihkan(jawaban))) {
+    await bicaraPotongan(potongan, () => {
+      d.textContent += (kosong ? '' : ' ') + potongan; kosong = false; gulir();
+    });
+  }
+  d.textContent = jawaban; // pastikan teks utuh (termasuk simbol yang tidak dibacakan)
+  gulir();
+}
+
+/* ---------- Mengirim ---------- */
+let sibuk = false;
+function setSibuk(b) { sibuk = b; $('tKirim').disabled = b; }
+
+async function kirimPesan() {
+  if (sibuk) return;
+  const teks = $('teks').value.trim();
+  if (!teks && !lampiran) return;
+  if (!ambilKunci()) { bukaPengaturan(true); return; }
+  $('teks').value = ''; ukuranInput();
+  if (sintesis) sintesis.cancel();
+  setSibuk(true);
+  try {
+    let jawaban;
+    if (lampiran) {
+      const l = lampiran; const q = teks || BAWAAN;
+      hapusLampiran();
+      const g = gelembung('saya', '');
+      if (l.url) { const im = document.createElement('img'); im.className = 'mini'; im.src = l.url; im.alt = ''; g.appendChild(im); }
+      g.appendChild(document.createTextNode(`[${l.nama}] ${q}`));
+      setKeadaan('berpikir');
+      jawaban = await tanyaFile(l, q);
+    } else {
+      gelembung('saya', teks);
+      setKeadaan('berpikir');
+      jawaban = await tanyaAI(teks);
+    }
+    await tampilkanJawaban(jawaban);
+  } catch (e) {
+    info(pesanRamah(e), true);
+  } finally {
+    setSibuk(false); setKeadaan('siaga');
+  }
+  if (muat('otoKirim', false) && lampiran === null && micTerakhirBerhasil) mulaiDengar();
+}
+
+/* ---------- Suara masuk ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let pengenal = null, micTerakhirBerhasil = false;
+let dengarNative = false;
+function selesaiDengarNative() {
+  dengarNative = false; $('tMik').classList.remove('dengar');
+  if (!sibuk) setKeadaan('siaga');
+}
+window.astaHasilDengar = (teks) => {
+  selesaiDengarNative();
+  $('teks').value = teks; ukuranInput();
+  micTerakhirBerhasil = !!String(teks).trim();
+  if (micTerakhirBerhasil && muat('otoKirim', false)) kirimPesan();
+};
+window.astaGalatDengar = (kode) => {
+  selesaiDengarNative();
+  if (kode === 'izin') info('Beri izin mikrofon dulu, lalu ketuk mic lagi.', true);
+  else if (kode === 'tidak-ada-suara') info('Tidak ada suara terdengar.');
+  else if (kode === 'jaringan') info('Pengenal suara butuh koneksi internet.', true);
+  else if (kode === 'tidak-tersedia') info('Pengenal suara tidak tersedia di ponsel ini.', true);
+  else if (kode !== 'dibatalkan') info('Pengenalan suara gagal (' + kode + ').', true);
+};
+function mulaiDengarNative() {
+  if (sibuk) return;
+  if (dengarNative) { window.AstaNative.berhentiDengar(); return; }
+  if (sintesis) sintesis.cancel();
+  micTerakhirBerhasil = false; dengarNative = true;
+  $('tMik').classList.add('dengar'); setKeadaan('dengar');
+  window.AstaNative.dengar();
+}
+
+function mulaiDengar() {
+  if (window.AstaNative && window.AstaNative.dengar) { mulaiDengarNative(); return; }
+  if (!SR || sibuk) return;
+  if (pengenal) { pengenal.stop(); return; }
+  if (sintesis) sintesis.cancel();
+  const r = new SR();
+  pengenal = r; micTerakhirBerhasil = false;
+  r.lang = 'id-ID'; r.interimResults = true; r.continuous = false;
+  r.onstart = () => { $('tMik').classList.add('dengar'); setKeadaan('dengar'); };
+  r.onresult = (e) => {
+    let teks = '';
+    for (const hasil of e.results) teks += hasil[0].transcript;
+    $('teks').value = teks; ukuranInput();
+    micTerakhirBerhasil = !!teks.trim();
+  };
+  r.onerror = (e) => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') info('Izin mikrofon ditolak. Aktifkan di pengaturan situs browser.', true);
+    else if (e.error === 'no-speech') info('Tidak ada suara terdengar.');
+    else if (e.error === 'network') info('Pengenal suara butuh koneksi internet.', true);
+  };
+  r.onend = () => {
+    pengenal = null;
+    $('tMik').classList.remove('dengar');
+    if (!sibuk) setKeadaan('siaga');
+    if (micTerakhirBerhasil && muat('otoKirim', false)) kirimPesan();
+  };
+  try { r.start(); } catch { pengenal = null; }
+}
+
+/* ---------- Pengaturan dan catatan ---------- */
+function isiDaftarSuara() {
+  const pilih = $('suaraPilih');
+  const daftar = suaraIndonesia();
+  pilih.innerHTML = '';
+  if (!daftar.length) {
+    const o = document.createElement('option'); o.textContent = 'Suara bawaan perangkat'; o.value = ''; pilih.appendChild(o);
+    $('infoSuara').textContent = 'Suara Indonesia belum ditemukan. Di Android: Pengaturan > Sistem > Bahasa > Text-to-speech > Google > pasang Bahasa Indonesia.';
+    return;
+  }
+  const dipilih = pilihSuara();
+  for (const v of daftar) {
+    const o = document.createElement('option'); o.value = v.name; o.textContent = v.name; o.selected = dipilih && v.name === dipilih.name;
+    pilih.appendChild(o);
+  }
+  $('infoSuara').textContent = 'Suara berasal dari mesin text-to-speech di perangkatmu.';
+}
+if (sintesis) sintesis.addEventListener('voiceschanged', isiDaftarSuara);
+
+function bukaPengaturan(awal) {
+  $('infoAwal').hidden = !awal;
+  $('kunci').value = muat('kunci', '');
+  $('nama').value = muat('nama', '');
+  $('laju').value = muat('laju', 1);
+  $('otoKirim').checked = !!muat('otoKirim', false);
+  $('model').value = muat('model', 'gemini-3.5-flash-lite');
+  $('modelFile').value = muat('modelFile', 'gemini-3.8-flash');
+  $('tokenGh').value = muat('tokenGh', '');
+  $('sandiSinkron').value = muat('sandiSinkron', '');
+  $('sandiUlang').value = '';
+  isiDaftarSuara();
+  if (!$('dlgPengaturan').open) $('dlgPengaturan').showModal();
+}
+
+function bukaCatatan() {
+  const daftar = muat('catatan', []).filter((c) => !c.x);
+  const kotak = $('daftarCatatan');
+  kotak.innerHTML = '';
+  if (!daftar.length) { const p = document.createElement('div'); p.className = 'kosong'; p.textContent = 'Belum ada catatan. Coba bilang: "catat beli buku besok".'; kotak.appendChild(p); }
+  daftar.slice().sort((p, q) => q.t - p.t).forEach((c) => {
+    const baris = document.createElement('div'); baris.className = 'catatan-item';
+    const isi = document.createElement('div'); isi.className = 'isi';
+    const t = document.createElement('time'); const d = new Date(c.t);
+    t.textContent = `${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}, ${dua(d.getHours())}:${dua(d.getMinutes())}`;
+    isi.appendChild(t); isi.appendChild(document.createTextNode(c.teks));
+    const hapus = document.createElement('button'); hapus.className = 'btn'; hapus.textContent = 'Hapus';
+    hapus.onclick = () => {
+      const semua = muat('catatan', []);
+      const target = semua.find((x) => x.id === c.id);
+      if (target) target.x = Date.now();
+      simpan('catatan', semua); jadwalkanSinkron(); bukaCatatan();
+    };
+    baris.appendChild(isi); baris.appendChild(hapus); kotak.appendChild(baris);
+  });
+  if (!$('dlgCatatan').open) $('dlgCatatan').showModal();
+}
+
+async function tesKoneksi() {
+  const hasil = $('hasilTes');
+  const tulis = (teks, warna) => { hasil.textContent = teks; hasil.style.color = warna || 'var(--redup)'; };
+  const kunci = ambilKunci();
+  tulis('Memeriksa...');
+  // Langkah 1: apakah internet umum bisa dijangkau?
+  try { await fetch('https://www.google.com/generate_204', { mode: 'no-cors', cache: 'no-store' }); }
+  catch { tulis('Langkah 1 gagal: perangkat tidak bisa menjangkau internet sama sekali. Periksa WiFi, VPN, atau mode hemat data.', 'var(--merah)'); return; }
+  if (!kunci) { tulis('Internet tersambung. Tetapi kunci API belum diisi.', 'var(--amber)'); return; }
+  // Langkah 2: apakah server Gemini bisa dijangkau dan kunci valid?
+  try {
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1', { headers: { 'x-goog-api-key': kunci } });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok) tulis('Berhasil. Internet dan kunci API berfungsi (panjang kunci ' + kunci.length + ' karakter).', 'var(--hijau)');
+    else tulis('Server Google terjangkau, tetapi menolak: ' + ((data.error && data.error.message) || ('HTTP ' + r.status)), 'var(--amber)');
+  } catch (e) {
+    tulis('Internet tersambung, tetapi server Gemini (generativelanguage.googleapis.com) tidak terjangkau: ' + String(e.message).slice(0, 100) + '. Kemungkinan penyebab: DNS Pribadi, pemblokir iklan, VPN, atau jaringan yang memblokir alamat itu.', 'var(--merah)');
+  }
+}
+
+function lupakanPercakapan() {
+  riwayat = []; simpan('riwayat', riwayat);
+  simpan('riwayatNol', Date.now());
+  jadwalkanSinkron();
+  info('Ingatan percakapan sudah dihapus.');
+}
+
+/* ---------- Mode ---------- */
+function buatChipMode() {
+  const kotak = $('mode');
+  kotak.innerHTML = '';
+  const aktif = muat('mode', 'Standar');
+  for (const nama of Object.keys(MODE)) {
+    const b = document.createElement('button');
+    b.className = 'chip'; b.type = 'button'; b.setAttribute('role', 'radio');
+    b.setAttribute('aria-checked', String(nama === aktif)); b.title = MODE[nama][1];
+    b.textContent = nama;
+    b.onclick = () => { simpan('mode', nama); catatWaktu('mode'); buatChipMode(); info(`Mode ${nama} aktif: ${MODE[nama][1]}.`); };
+    kotak.appendChild(b);
+  }
+}
+
+/* ---------- Indikator orb ---------- */
+const kanvas = $('orb'), g = kanvas.getContext('2d');
+let W = 300, H = 200, keadaan = 'siaga', mult = 1, sudut = 0, fase = 0, tAkhir = performance.now();
+const kurangGerak = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const STATUS = { siaga: ['SIAGA', '#d8f4ff'], berpikir: ['MEMPROSES', '#ffb347'], bicara: ['BERBICARA', '#39ff88'], dengar: ['MENDENGARKAN', '#39ff88'] };
+const CINCIN = [
+  { r: 1.00, lebar: 3, warna: '#33d6ff', segmen: 3, ext: 70, kec: 30 },
+  { r: 0.93, lebar: 2, warna: '#1f8fff', segmen: 8, ext: 22, kec: -55 },
+  { r: 0.86, lebar: 1, warna: '#2a6fa8', segmen: 1, ext: 359, kec: 0 },
+  { r: 0.79, lebar: 5, warna: '#33d6ff', segmen: 2, ext: 100, kec: 80 },
+  { r: 0.72, lebar: 2, warna: '#2a8fd8', segmen: 4, ext: 50, kec: -35 },
+];
+function setKeadaan(k) { keadaan = k; }
+function ukuranKanvas() {
+  const r = kanvas.getBoundingClientRect();
+  const d = Math.min(window.devicePixelRatio || 1, 2);
+  kanvas.width = Math.max(1, Math.round(r.width * d)); kanvas.height = Math.max(1, Math.round(r.height * d));
+  g.setTransform(d, 0, 0, d, 0, 0); W = r.width; H = r.height;
+}
+new ResizeObserver(ukuranKanvas).observe(kanvas);
+const rad = (d) => d * Math.PI / 180;
+
+function gambarOrb(now) {
+  requestAnimationFrame(gambarOrb);
+  if (document.hidden) { tAkhir = now; return; }
+  const dt = Math.min(0.1, (now - tAkhir) / 1000); tAkhir = now;
+  const target = { siaga: 1, berpikir: 3, bicara: 1.8, dengar: 1.5 }[keadaan] * (kurangGerak ? 0.25 : 1);
+  mult += (target - mult) * Math.min(1, dt * 4);
+  sudut += dt * mult; fase += kurangGerak ? dt * 0.3 : dt;
+  const t = fase, cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.44;
+  g.clearRect(0, 0, W, H);
+  g.lineCap = 'round';
+
+  for (const s of CINCIN) {
+    g.strokeStyle = s.warna; g.lineWidth = s.lebar;
+    const dasar = sudut * s.kec;
+    for (let i = 0; i < s.segmen; i++) {
+      const a0 = rad(dasar + i * 360 / s.segmen);
+      g.beginPath(); g.arc(cx, cy, R * s.r, a0, a0 + rad(s.ext)); g.stroke();
+    }
+  }
+  g.save(); g.setLineDash([1, 11]); g.lineCap = 'butt'; g.strokeStyle = '#1d5d8f'; g.lineWidth = 7;
+  g.beginPath(); g.arc(cx, cy, R * 0.66, 0, Math.PI * 2); g.stroke(); g.restore();
+
+  const a = rad(sudut * 120), rs = R * 0.86;
+  g.strokeStyle = '#33d6ff'; g.lineWidth = 1;
+  g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + rs * Math.cos(a), cy + rs * Math.sin(a)); g.stroke();
+  g.fillStyle = '#33d6ff'; g.beginPath(); g.arc(cx + rs * Math.cos(a), cy + rs * Math.sin(a), 3.5, 0, Math.PI * 2); g.fill();
+
+  let p, cerah;
+  if (keadaan === 'bicara' || keadaan === 'dengar') { p = 1 + 0.05 * Math.sin(t * 11) + 0.03 * Math.sin(t * 17 + 1); cerah = 0.92 + 0.08 * Math.sin(t * 9); }
+  else if (keadaan === 'berpikir') { p = 1 + 0.025 * Math.sin(t * 5); cerah = 0.88 + 0.12 * Math.sin(t * 4); }
+  else { p = 1 + 0.015 * Math.sin(t * 1.6); cerah = 0.82 + 0.05 * Math.sin(t * 1.2); }
+  const ro = R * 0.46 * p;
+
+  for (let i = 0; i < 4; i++) {
+    g.strokeStyle = `rgba(31,122,255,${0.14 + 0.08 * i})`; g.lineWidth = 2;
+    g.beginPath(); g.arc(cx, cy, ro * (1.06 + 0.07 * i), 0, Math.PI * 2); g.stroke();
+  }
+
+  const warnaBar = { siaga: '#1d5d8f', berpikir: '#ffb347', bicara: '#33d6ff', dengar: '#39ff88' }[keadaan];
+  g.strokeStyle = warnaBar; g.lineWidth = 3;
+  const n = 56, r0 = ro * 1.34;
+  for (let k = 0; k < n; k++) {
+    const ang = 2 * Math.PI * k / n + sudut * 0.15;
+    let pj;
+    if (keadaan === 'bicara' || keadaan === 'dengar') pj = ro * 0.22 * (0.25 + Math.abs(Math.sin(t * 10 + k * 0.7) * Math.cos(t * 6 + k * 0.31)));
+    else if (keadaan === 'berpikir') pj = 4 + 18 * Math.pow(Math.max(0, Math.sin(t * 5 - k * 0.35)), 3);
+    else pj = 3 + 2.5 * Math.sin(t * 1.5 + k * 0.4);
+    g.beginPath();
+    g.moveTo(cx + r0 * Math.cos(ang), cy + r0 * Math.sin(ang));
+    g.lineTo(cx + (r0 + pj) * Math.cos(ang), cy + (r0 + pj) * Math.sin(ang));
+    g.stroke();
+  }
+
+  const grad = g.createRadialGradient(cx, cy, 0, cx, cy, ro);
+  grad.addColorStop(0, '#c4ecff'); grad.addColorStop(0.28, '#6fc0ff'); grad.addColorStop(0.6, '#1f7aff'); grad.addColorStop(1, '#0a2b6e');
+  g.globalAlpha = Math.min(1, 0.55 + cerah * 0.5);
+  g.fillStyle = grad; g.beginPath(); g.arc(cx, cy, ro, 0, Math.PI * 2); g.fill();
+  g.globalAlpha = 1;
+
+  const [teksStatus, warnaStatus] = STATUS[keadaan];
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = '#eaf7ff'; g.font = `700 ${Math.max(14, ro * 0.3)}px ui-monospace, "Roboto Mono", monospace`;
+  g.fillText('A S T A', cx, cy - ro * 0.12);
+  g.fillStyle = warnaStatus; g.font = `700 ${Math.max(10, ro * 0.14)}px ui-monospace, "Roboto Mono", monospace`;
+  g.fillText(teksStatus, cx, cy + ro * 0.32);
+
+  g.strokeStyle = '#33d6ff'; g.lineWidth = 2; g.lineCap = 'butt';
+  const m = 10, s = 24;
+  for (const [x, y, dx, dy] of [[m, m, 1, 1], [W - m, m, -1, 1], [m, H - m, 1, -1], [W - m, H - m, -1, -1]]) {
+    g.beginPath(); g.moveTo(x + dx * s, y); g.lineTo(x, y); g.lineTo(x, y + dy * s); g.stroke();
+  }
+}
+
+/* ---------- Jam, jaringan ---------- */
+function perbaruiJam() { const n = new Date(); $('jam').textContent = dua(n.getHours()) + ':' + dua(n.getMinutes()); }
+function perbaruiJaringan() {
+  const on = navigator.onLine;
+  $('titik').className = 'titik ' + (on ? 'on' : 'off');
+  $('teksJaringan').textContent = on ? 'online' : 'offline';
+}
+
+/* ---------- Sinkronisasi antar perangkat ---------- */
+const DESK = 'asta-sync-data';
+const BERKAS = 'asta-data.json';
+const tokenGh = () => bersihkanKunci(muat('tokenGh', ''));
+const sandiSinkron = () => String(muat('sandiSinkron', '')).trim();
+const sinkronSiap = () => !!tokenGh() && !!sandiSinkron();
+// Otomatis hanya jalan setelah kamu menekan "Sinkronkan sekarang" dan berhasil, supaya
+// mengetik token atau sandi (yang tersimpan tiap huruf) tidak memicu sinkronisasi setengah jadi.
+const sinkronAktif = () => sinkronSiap() && !!muat('sinkronOn', false);
+class GalatSinkron extends Error {}
+let sinkronSedang = false, sinkronUlang = false, sinkronTunda = null, galatDitampilkan = false;
+const KOSONG = { catatan: [], riwayat: [], riwayatNol: 0, pengaturan: {} };
+
+function catatWaktu(kunci) {
+  const tp = muat('tp', {}); tp[kunci] = Date.now(); simpan('tp', tp);
+  jadwalkanSinkron();
+}
+
+const b64 = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+const ub64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+
+async function turunkanKunci(sandi, garam) {
+  const bahan = await crypto.subtle.importKey('raw', new TextEncoder().encode(sandi), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: garam, iterations: 120000, hash: 'SHA-256' },
+    bahan, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function enkripsi(objek, sandi) {
+  const garam = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const kunci = await turunkanKunci(sandi, garam);
+  const isi = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, kunci, new TextEncoder().encode(JSON.stringify(objek))));
+  return JSON.stringify({ v: 1, g: b64(garam), i: b64(iv), c: b64(isi) });
+}
+async function dekripsi(teks, sandi) {
+  let paket;
+  try { paket = JSON.parse(teks); } catch { throw new GalatSinkron('Data sinkron di GitHub rusak atau bukan milik Asta.'); }
+  try {
+    const kunci = await turunkanKunci(sandi, ub64(paket.g));
+    const buf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ub64(paket.i) }, kunci, ub64(paket.c));
+    return JSON.parse(new TextDecoder().decode(buf));
+  } catch { throw new GalatSinkron('Sandi ini tidak cocok dengan data sinkron yang sudah ada di GitHub. Kalau ini perangkat kedua, pakai sandi yang sama seperti di perangkat pertama. Kalau kamu belum pernah membuat sandi, atau lupa sandinya, ketuk "Atur ulang sinkronisasi" di bawah, lalu mulai lagi dengan sandi baru.'); }
+}
+
+async function ghFetch(path, opsi = {}) {
+  const r = await fetch('https://api.github.com' + path, {
+    cache: 'no-store', ...opsi,
+    headers: { Authorization: 'Bearer ' + tokenGh(), Accept: 'application/vnd.github+json', ...(opsi.body ? { 'Content-Type': 'application/json' } : {}) },
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new GalatApi(data.message || ('HTTP ' + r.status), r.status);
+  return data;
+}
+async function cariGist() {
+  const id = muat('gistId', '');
+  if (id) return id;
+  for (let hal = 1; hal <= 3; hal++) {
+    const daftar = await ghFetch('/gists?per_page=100&page=' + hal);
+    const ada = daftar.find((g) => g.description === DESK && g.files && g.files[BERKAS]);
+    if (ada) { simpan('gistId', ada.id); return ada.id; }
+    if (daftar.length < 100) break;
+  }
+  return null;
+}
+async function bacaRemote(id) {
+  const g = await ghFetch('/gists/' + id);
+  const f = g.files && g.files[BERKAS];
+  if (!f) throw new GalatApi('Berkas sinkron tidak ditemukan.', 404);
+  if (f.truncated && f.raw_url) return (await fetch(f.raw_url, { cache: 'no-store' })).text();
+  return f.content;
+}
+async function tulisRemote(id, objek) {
+  const isi = await enkripsi(objek, sandiSinkron());
+  if (id) { await ghFetch('/gists/' + id, { method: 'PATCH', body: JSON.stringify({ files: { [BERKAS]: { content: isi } } }) }); return id; }
+  const g = await ghFetch('/gists', { method: 'POST', body: JSON.stringify({ description: DESK, public: false, files: { [BERKAS]: { content: isi } } }) });
+  simpan('gistId', g.id);
+  return g.id;
+}
+
+function keadaanLokal() {
+  const tp = muat('tp', {});
+  return {
+    catatan: muat('catatan', []), riwayat: riwayat.slice(), riwayatNol: muat('riwayatNol', 0),
+    pengaturan: { nama: { v: String(muat('nama', '')), t: tp.nama || 0 }, mode: { v: muat('mode', 'Standar'), t: tp.mode || 0 } },
+  };
+}
+function gabung(a, b) {
+  a = { ...KOSONG, ...a }; b = { ...KOSONG, ...b };
+  const peta = new Map();
+  for (const c of [...a.catatan, ...b.catatan]) {
+    const lama = peta.get(c.id);
+    if (!lama) peta.set(c.id, { ...c });
+    else if (c.x) lama.x = Math.max(lama.x || 0, c.x);
+  }
+  const batas = Date.now() - 30 * 864e5;
+  const catatan = [...peta.values()].filter((c) => !(c.x && c.x < batas)).sort((p, q) => (p.t - q.t) || (p.id < q.id ? -1 : 1));
+  const nol = Math.max(a.riwayatNol || 0, b.riwayatNol || 0);
+  const lihat = new Set(); let rw = [];
+  for (const r of [...a.riwayat, ...b.riwayat]) {
+    const k = r.t + '|' + r.role + '|' + r.text;
+    if (r.t > nol && !lihat.has(k)) { lihat.add(k); rw.push(r); }
+  }
+  rw.sort((p, q) => p.t - q.t);
+  rw = rw.slice(-MAKS_RIWAYAT);
+  while (rw.length && rw[0].role !== 'user') rw.shift();
+  const pg = {};
+  for (const k of [...new Set([...Object.keys(a.pengaturan || {}), ...Object.keys(b.pengaturan || {})])].sort()) {
+    const x = (a.pengaturan || {})[k], y = (b.pengaturan || {})[k];
+    pg[k] = !x ? y : !y ? x : (y.t > x.t ? y : x);
+  }
+  return { catatan, riwayat: rw, riwayatNol: nol, pengaturan: pg };
+}
+const ringkas = (m) => JSON.stringify([
+  m.catatan.map((c) => [c.id, c.x || 0]), m.riwayat.map((r) => [r.t, r.role]), m.riwayatNol || 0,
+  Object.keys(m.pengaturan || {}).sort().map((k) => [k, m.pengaturan[k].v, m.pengaturan[k].t]),
+]);
+
+function terapkan(m) {
+  simpan('catatan', m.catatan);
+  riwayat = m.riwayat; simpan('riwayat', riwayat);
+  simpan('riwayatNol', m.riwayatNol);
+  const p = m.pengaturan || {}, tp = muat('tp', {});
+  if (p.nama && p.nama.t > (tp.nama || 0)) { simpan('nama', p.nama.v); tp.nama = p.nama.t; }
+  if (p.mode && p.mode.t > (tp.mode || 0) && MODE[p.mode.v]) { simpan('mode', p.mode.v); tp.mode = p.mode.t; }
+  simpan('tp', tp);
+  buatChipMode();
+  if ($('dlgPengaturan').open) $('nama').value = muat('nama', '');
+  if ($('dlgCatatan').open) bukaCatatan();
+}
+
+function statusSinkron(teks, warna) {
+  const el = $('statusSinkron');
+  el.textContent = teks;
+  el.style.color = { merah: 'var(--merah)', hijau: 'var(--hijau)', amber: 'var(--amber)' }[warna] || 'var(--redup)';
+}
+function pesanSinkron(e) {
+  if (e instanceof GalatSinkron) return e.message;
+  if (e instanceof TypeError) return 'Tidak bisa menghubungi GitHub: ' + String(e.message).slice(0, 80);
+  if (e.status === 401) return 'Token GitHub tidak valid atau sudah kedaluwarsa.';
+  if (e.status === 403) return 'GitHub menolak: token tidak punya izin gist, atau batas permintaan tercapai.';
+  if (e.status === 404) return 'Data tidak ditemukan di GitHub. Coba sinkronkan lagi.';
+  return 'Sinkronisasi gagal: ' + String(e.message).slice(0, 120);
+}
+
+async function aturUlangSinkron() {
+  if (!tokenGh()) { statusSinkron('Isi token GitHub dulu, supaya Asta boleh menghapus data sinkron.', 'amber'); return; }
+  if (!confirm('Hapus data sinkron di GitHub? Catatan di perangkat ini tidak ikut terhapus. Yang hilang hanya salinan di GitHub, yang dipakai perangkat lain. Setelah itu kamu bisa membuat sandi baru.')) return;
+  statusSinkron('Menghapus...');
+  try {
+    const ids = [];
+    for (let hal = 1; hal <= 3; hal++) {
+      const daftar = await ghFetch('/gists?per_page=100&page=' + hal);
+      daftar.filter((g) => g.description === DESK).forEach((g) => ids.push(g.id));
+      if (daftar.length < 100) break;
+    }
+    for (const id of ids) await ghFetch('/gists/' + id, { method: 'DELETE' });
+    simpan('gistId', ''); simpan('sinkronOn', false);
+    statusSinkron(ids.length ? ids.length + ' data sinkron dihapus. Sekarang isi sandi baru dan ulangi sandinya, lalu ketuk Sinkronkan sekarang.' : 'Tidak ada data sinkron di GitHub. Kamu bisa langsung membuat sandi baru.', 'hijau');
+  } catch (e) { statusSinkron(pesanSinkron(e), 'merah'); }
+}
+
+function jadwalkanSinkron(ms = 1500) {
+  if (!sinkronAktif()) return;
+  clearTimeout(sinkronTunda);
+  sinkronTunda = setTimeout(() => sinkron(false), ms);
+}
+
+async function sinkron(manual) {
+  if (!sinkronSiap()) { if (manual) statusSinkron('Isi token GitHub dan sandi sinkron dulu.', 'amber'); return; }
+  if (!manual && !muat('sinkronOn', false)) return;
+  if (sinkronSedang) { sinkronUlang = true; return; }
+  if (sibuk) { jadwalkanSinkron(2500); return; }
+  sinkronSedang = true; sinkronUlang = false;
+  statusSinkron('Menyinkronkan...');
+  try {
+    const sandi = sandiSinkron();
+    let id = await cariGist(), remote = null;
+    if (id) {
+      try { remote = await dekripsi(await bacaRemote(id), sandi); }
+      catch (e) { if (e instanceof GalatApi && e.status === 404) { simpan('gistId', ''); id = null; } else throw e; }
+    }
+    if (sibuk) { jadwalkanSinkron(2500); return; }
+    if (!remote) {  // belum ada data di GitHub: ini akan membuat penyimpanan baru
+      if (!manual) { statusSinkron(''); return; }
+      if ($('sandiUlang').value.trim() !== sandi) {
+        statusSinkron('Belum ada data sinkron di GitHub, jadi ini akan membuatnya. Ketik sandi yang sama di kolom "Ulangi sandi" dulu supaya tidak salah ketik, lalu ketuk Sinkronkan sekarang lagi.', 'amber');
+        return;
+      }
+    }
+    const lokal = keadaanLokal();
+    const m = gabung(remote || KOSONG, lokal);
+    const dikenal = new Set(lokal.catatan.map((c) => c.id));
+    const baru = m.catatan.filter((c) => !c.x && !dikenal.has(c.id)).length;
+    const rwBaru = remote && ringkas({ ...m, catatan: [], pengaturan: {} }) !== ringkas({ ...lokal, catatan: [], pengaturan: {} });
+    if (ringkas(m) !== ringkas(lokal)) terapkan(m);
+    if (!remote || ringkas(m) !== ringkas(gabung(remote, KOSONG))) await tulisRemote(id, m);
+    const n = new Date();
+    statusSinkron('Tersinkron pukul ' + dua(n.getHours()) + ':' + dua(n.getMinutes()), 'hijau');
+    galatDitampilkan = false;
+    simpan('sinkronOn', true);
+    $('sandiUlang').value = '';
+    if (baru > 0) info(baru + ' catatan baru dari perangkat lain.');
+    else if (rwBaru) info('Ingatan percakapan diperbarui dari perangkat lain.');
+  } catch (e) {
+    const pesan = pesanSinkron(e);
+    if (e instanceof GalatSinkron || e.status === 401) simpan('sinkronOn', false);
+    statusSinkron(pesan, 'merah');
+    if (manual || !galatDitampilkan) { info('Sinkronisasi: ' + pesan, true); galatDitampilkan = true; }
+  } finally {
+    sinkronSedang = false;
+    if (sinkronUlang) jadwalkanSinkron(500);
+  }
+}
+
+function migrasi() {
+  let berubah = false;
+  const catatan = muat('catatan', []).map((c) => {
+    if (c.id) return c; berubah = true;
+    return { ...c, id: 'n' + c.t + '-' + Math.random().toString(36).slice(2, 8) };
+  });
+  if (berubah) simpan('catatan', catatan);
+  let ub = false; const n = riwayat.length;
+  riwayat = riwayat.map((r, i) => { if (r.t) return r; ub = true; return { ...r, t: Date.now() - (n - i) * 1000 }; });
+  if (ub) simpan('riwayat', riwayat);
+}
+
+/* ---------- Pemasangan aplikasi dan pembaruan ---------- */
+let tundaPasang = null, pitaUpdate = null;
+const sudahTerpasang = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+const lebihBaru = (a, b) => {
+  const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d > 0; }
+  return false;
+};
+function statusApp(teks, warna) {
+  const el = $('statusApp'); el.textContent = teks;
+  el.style.color = { merah: 'var(--merah)', hijau: 'var(--hijau)', amber: 'var(--amber)' }[warna] || 'var(--redup)';
+}
+function segarkanPita() {
+  const pita = $('pita');
+  if (pitaUpdate) {
+    $('pitaTeks').textContent = 'Versi baru tersedia: ' + pitaUpdate + '.';
+    $('pitaAksi').textContent = 'Muat ulang'; $('pitaAksi').onclick = muatUlang; pita.hidden = false; return;
+  }
+  if (tundaPasang && !sudahTerpasang() && !muat('tutupPasang', false)) {
+    $('pitaTeks').textContent = 'Pasang Asta di layar utama supaya terbuka seperti aplikasi.';
+    $('pitaAksi').textContent = 'Pasang'; $('pitaAksi').onclick = pasangAplikasi; pita.hidden = false; return;
+  }
+  pita.hidden = true;
+}
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); tundaPasang = e; segarkanPita(); });
+window.addEventListener('appinstalled', () => { tundaPasang = null; segarkanPita(); statusApp('Asta sudah terpasang di layar utama.', 'hijau'); });
+
+async function pasangAplikasi() {
+  if (sudahTerpasang()) { statusApp('Asta sudah terpasang dan sedang dibuka sebagai aplikasi.', 'hijau'); return; }
+  if (tundaPasang) {
+    const tawaran = tundaPasang;
+    tawaran.prompt();
+    const hasil = await tawaran.userChoice.catch(() => ({}));
+    tundaPasang = null; segarkanPita();
+    statusApp(hasil.outcome === 'accepted' ? 'Memasang Asta...' : 'Pemasangan dibatalkan. Kamu bisa mencoba lagi nanti.', hasil.outcome === 'accepted' ? 'hijau' : '');
+    return;
+  }
+  statusApp('Tombol pasang otomatis belum tersedia di browser ini. Ketuk menu titik tiga di Chrome, lalu pilih "Install app" atau "Tambahkan ke layar utama". Kalau pilihannya tidak ada, pastikan halaman dibuka lewat Chrome, bukan lewat aplikasi lain.', 'amber');
+}
+
+async function muatUlang() {
+  try { const ks = await caches.keys(); await Promise.all(ks.map((k) => caches.delete(k))); } catch { /* abaikan */ }
+  location.reload();
+}
+
+async function periksaPembaruan(manual) {
+  const terakhir = Number(muat('cekTerakhir', 0));
+  if (!manual && Date.now() - terakhir < 20 * 60 * 1000) return;
+  simpan('cekTerakhir', Date.now());
+  try {
+    const r = await fetch('index.html?cek=' + Date.now(), { cache: 'no-store' });
+    const m = (await r.text()).match(/const VERSI = '([^']+)'/);
+    if (!m) { if (manual) statusApp('Tidak bisa membaca versi terbaru.', 'amber'); return; }
+    if (lebihBaru(m[1], VERSI)) { pitaUpdate = m[1]; segarkanPita(); if (manual) statusApp('Ada versi baru: ' + m[1] + '. Ketuk Muat ulang.', 'amber'); }
+    else if (manual) statusApp('Sudah versi terbaru (' + VERSI + ').', 'hijau');
+  } catch { if (manual) statusApp('Tidak bisa memeriksa pembaruan. Periksa koneksi internet.', 'merah'); }
+}
+
+/* ---------- Pemasangan ---------- */
+function ukuranInput() { const t = $('teks'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px'; }
+
+function suaraTombol() {
+  const aktif = !!muat('suara', true);
+  $('tSuara').setAttribute('aria-pressed', String(aktif));
+  $('ikSuara').innerHTML = aktif
+    ? '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>'
+    : '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>';
+}
+
+function pasang() {
+  migrasi();
+  $('verKecil').textContent = 'v' + VERSI;
+  $('infoVersi').textContent = 'Asta versi ' + VERSI + (sudahTerpasang() ? ' · dibuka sebagai aplikasi terpasang' : ' · dibuka di browser');
+  $('tPasang').onclick = pasangAplikasi;
+  $('tCekUpdate').onclick = () => { statusApp('Memeriksa...'); periksaPembaruan(true); };
+  $('pitaTutup').onclick = () => { if (pitaUpdate) pitaUpdate = null; else simpan('tutupPasang', true); segarkanPita(); };
+  setTimeout(() => periksaPembaruan(false), 2500);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) periksaPembaruan(false); });
+  perbaruiJam(); setInterval(perbaruiJam, 15000);
+  perbaruiJaringan(); addEventListener('online', perbaruiJaringan); addEventListener('offline', perbaruiJaringan);
+  buatChipMode(); suaraTombol(); ukuranKanvas(); requestAnimationFrame(gambarOrb);
+  if (!SR && !window.AstaNative) $('tMik').hidden = true;
+  if (window.AstaNative) { $('tPengingat').hidden = false; $('tPengingat').onclick = () => window.AstaNative.buka(); }
+
+  $('tKirim').onclick = kirimPesan;
+  $('teks').addEventListener('input', ukuranInput);
+  $('teks').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && matchMedia('(hover: hover)').matches) { e.preventDefault(); kirimPesan(); } });
+  $('tLampir').onclick = () => $('berkas').click();
+  $('tKamera').onclick = () => $('berkasKamera').click();
+  $('berkas').onchange = (e) => pilihBerkas(e.target);
+  $('berkasKamera').onchange = (e) => pilihBerkas(e.target);
+  $('lampiranHapus').onclick = hapusLampiran;
+  $('tMik').onclick = mulaiDengar;
+  $('tSuara').onclick = () => { simpan('suara', !muat('suara', true)); suaraTombol(); if (sintesis) sintesis.cancel(); };
+  $('tCatatan').onclick = bukaCatatan;
+  $('tPengaturan').onclick = () => bukaPengaturan(false);
+  $('tutupPengaturan').onclick = () => $('dlgPengaturan').close();
+  $('tutupCatatan').onclick = () => $('dlgCatatan').close();
+
+  $('kunci').addEventListener('input', (e) => {
+    const bersih = bersihkanKunci(e.target.value);
+    if (bersih !== e.target.value) e.target.value = bersih;
+    simpan('kunci', bersih);
+  });
+  $('lihatKunci').onclick = () => { const k = $('kunci'); const lihat = k.type === 'password'; k.type = lihat ? 'text' : 'password'; $('lihatKunci').textContent = lihat ? 'Sembunyi' : 'Lihat'; };
+  $('nama').addEventListener('input', (e) => { simpan('nama', e.target.value); catatWaktu('nama'); });
+  $('model').addEventListener('input', (e) => simpan('model', e.target.value.trim()));
+  $('modelFile').addEventListener('input', (e) => simpan('modelFile', e.target.value.trim()));
+  $('laju').addEventListener('input', (e) => simpan('laju', Number(e.target.value)));
+  $('otoKirim').addEventListener('change', (e) => simpan('otoKirim', e.target.checked));
+  $('suaraPilih').addEventListener('change', (e) => simpan('suaraNama', e.target.value));
+  $('tesKoneksi').onclick = tesKoneksi;
+  $('tokenGh').addEventListener('input', (e) => {
+    const bersih = bersihkanKunci(e.target.value);
+    if (bersih !== e.target.value) e.target.value = bersih;
+    simpan('tokenGh', bersih); simpan('gistId', ''); simpan('sinkronOn', false);
+  });
+  $('sandiSinkron').addEventListener('input', (e) => { simpan('sandiSinkron', e.target.value.trim()); simpan('sinkronOn', false); });
+  $('tAturUlang').onclick = aturUlangSinkron;
+  $('tSinkron').onclick = () => sinkron(true);
+  $('dlgPengaturan').addEventListener('close', () => jadwalkanSinkron(500));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) jadwalkanSinkron(300); });
+  addEventListener('online', () => jadwalkanSinkron(500));
+  setInterval(() => { if (!document.hidden) jadwalkanSinkron(100); }, 60000);
+  jadwalkanSinkron(800);
+  $('versi').textContent = 'Asta versi ' + VERSI;
+  $('tesSuara').onclick = () => {
+    if (!sintesis) { info('Browser ini tidak mendukung suara.', true); return; }
+    sintesis.cancel(); bicaraPotongan('Halo, ini suara saya.', () => {});
+  };
+  $('lupakan').onclick = () => { lupakanPercakapan(); $('dlgPengaturan').close(); };
+  $('hapusKunci').onclick = () => { if (confirm('Hapus kunci API dari ponsel ini?')) { simpan('kunci', ''); $('kunci').value = ''; info('Kunci API dihapus dari ponsel ini.'); } };
+  $('salinCatatan').onclick = async () => {
+    const teks = muat('catatan', []).filter((c) => !c.x).map((c) => c.teks).join('\n');
+    try { await navigator.clipboard.writeText(teks); info('Catatan disalin.'); } catch { info('Tidak bisa menyalin otomatis.', true); }
+  };
+  $('hapusCatatan').onclick = () => {
+    if (!confirm('Hapus semua catatan?')) return;
+    const sekarang = Date.now();
+    simpan('catatan', muat('catatan', []).map((c) => (c.x ? c : { ...c, x: sekarang })));
+    jadwalkanSinkron(); bukaCatatan();
+  };
+
+  if (sintesis) { sintesis.getVoices(); }
+  info(riwayat.length ? 'Percakapan sebelumnya masih diingat.' : 'Asta siap. Ketik atau bicara.');
+  if (!ambilKunci()) setTimeout(() => bukaPengaturan(true), 300);
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+}
+pasang();
+</script>
+</body>
+</html>

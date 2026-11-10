@@ -1,0 +1,65 @@
+name: Bangun APK Asta
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'android/**'
+      - '.github/workflows/build-apk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ambil kode
+        uses: actions/checkout@v4
+
+      - name: Pasang Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Pasang Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Tentukan alamat Asta (PWA)
+        id: alamat
+        env:
+          ALAMAT_MANUAL: ${{ vars.ALAMAT_ASTA }}
+        run: |
+          pemilik="${GITHUB_REPOSITORY_OWNER}"
+          repo="${GITHUB_REPOSITORY#*/}"
+          if [ -n "$ALAMAT_MANUAL" ]; then
+            url="$ALAMAT_MANUAL"
+          elif [ "${repo,,}" = "${pemilik,,}.github.io" ]; then
+            url="https://${pemilik,,}.github.io/"
+          else
+            url="https://${pemilik,,}.github.io/${repo}/"
+          fi
+          echo "Alamat Asta: $url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Bangun APK
+        working-directory: android
+        run: gradle assembleDebug --no-daemon -PalamatAsta="${{ steps.alamat.outputs.url }}"
+
+      - name: Simpan APK sebagai artefak
+        uses: actions/upload-artifact@v4
+        with:
+          name: Asta-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: Terbitkan ke Releases (tautan unduh langsung)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk Asta.apk
+          gh release view terbaru >/dev/null 2>&1 || gh release create terbaru --title "Asta (terbaru)" --notes "APK Asta terbaru, dibangun otomatis."
+          gh release upload terbaru Asta.apk --clobber
