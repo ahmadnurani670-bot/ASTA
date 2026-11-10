@@ -1372,6 +1372,24 @@ pasang();
   <script>
 // Deteksi apakah berjalan di Android wrapper
 const isAndroidWrapper = () => typeof window.AstaAndroid !== 'undefined';
+    <script>
+// Deteksi apakah berjalan di Android wrapper
+const isAndroidWrapper = () => typeof window.AstaNative !== 'undefined';
+
+if (isAndroidWrapper()) {
+  // Inisialisasi suara native Android
+  window.AstaNative.initTTS();
+  
+  // Paksa sintesis menggunakan Native Android jika browser tidak mendukung
+  if (!('speechSynthesis' in window)) {
+    window.speechSynthesis = {
+      speak: (utterance) => window.AstaNative.bicaraNative(utterance.text),
+      cancel: () => window.AstaNative.berhentiBicara()
+    };
+  }
+  console.log('✅ Fitur suara Native Android diaktifkan');
+}
+</script>
 
 if (isAndroidWrapper()) {
   // Override fungsi alarm jika di Android wrapper
