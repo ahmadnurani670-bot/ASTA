@@ -1400,5 +1400,252 @@ if (isAndroidWrapper()) {
   console.log('ℹ️ Asta berjalan di browser — fitur native tidak tersedia');
 }
 </script>
+  <script>
+// ===== ASTA TOOLS: Function Calling =====
+const ASTA_TOOLS = [
+  {
+    functionDeclarations: [
+      {
+        name: "setAlarm",
+        description: "Atur pengingat/alarm pada waktu spesifik. PANGGIL jika user minta pengingat di jam tertentu.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            jam: { type: "INTEGER", description: "Jam 0-23" },
+            menit: { type: "INTEGER", description: "Menit 0-59" },
+            pesan: { type: "STRING", description: "Pesan pengingat" }
+          },
+          required: ["jam", "menit", "pesan"]
+        }
+      },
+      {
+        name: "setTimer",
+        description: "Atur timer hitung mundur. PANGGIL jika user minta timer dengan durasi.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            detik: { type: "INTEGER", description: "Durasi dalam detik" },
+            pesan: { type: "STRING", description: "Pesan saat timer selesai" }
+          },
+          required: ["detik", "pesan"]
+        }
+      },
+      {
+        name: "cariWeb",
+        description: "Cari informasi di internet. PANGGIL jika user minta info terbaru.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            kueri: { type: "STRING", description: "Kata kunci pencarian" }
+          },
+          required: ["kueri"]
+        }
+      },
+      {
+        name: "bukaBrowser",
+        description: "Buka website di browser.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            url: { type: "STRING", description: "URL lengkap" }
+          },
+          required: ["url"]
+        }
+      }
+    ]
+  }
+];
+
+// ===== SISTEM PERINTAH AKTIF =====
+let perintahAktif = new Map();
+let nextCmdId = 1;
+
+function daftarkanPerintah(tipe, deskripsi, timeoutId) {
+  const id = nextCmdId++;
+  perintahAktif.set(id, { tipe, deskripsi, timeoutId, waktu: new Date() });
+  updatePanelPerintah();
+  return id;
+}
+
+function batalkanPerintah(id) {
+  const cmd = perintahAktif.get(id);
+  if (cmd) {
+    clearTimeout(cmd.timeoutId);
+    perintahAktif.delete(id);
+    updatePanelPerintah();
+    return true;
+  }
+  return false;
+}
+
+function updatePanelPerintah() {
+  // Update UI panel jika ada
+  const panel = document.getElementById('daftarPerintah');
+  if (panel) {
+    if (perintahAktif.size === 0) {
+      panel.innerHTML = '<p style="color:#90a4ae;font-size:13px;">Tidak ada perintah aktif.</p>';
+    } else {
+      let html = '';
+      perintahAktif.forEach((cmd, id) => {
+        html += `<div style="background:#0f2438;padding:8px 12px;border-radius:6px;margin:6px 0;display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+          <div><strong>#${id}</strong> ${cmd.tipe}<br><small style="color:#90a4ae;">${cmd.deskripsi}</small></div>
+          <button onclick="window.batalkanCmd(${id})" style="background:#ef5350;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;">Batalkan</button>
+        </div>`;
+      });
+      panel.innerHTML = html;
+    }
+  }
+}
+
+// Buat fungsi global agar bisa dipanggil dari HTML
+window.batalkanCmd = batalkanPerintah;
+window.perintahAktif = perintahAktif;
+window.daftarkanPerintah = daftarkanPerintah;
+
+// ===== FUNGSI ALARM & TIMER =====
+function buatPengingatWeb(jam, menit, pesan) {
+  const sekarang = new Date();
+  const target = new Date();
+  target.setHours(jam, menit, 0, 0);
+  if (target <= sekarang) target.setDate(target.getDate() + 1);
+  
+  const jedaMs = target - sekarang;
+  const jedaMenit = Math.round(jedaMs / 60000);
+  
+  const timeoutId = setTimeout(() => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('⏰ Asta Mengingatkan', {
+        body: pesan,
+        icon: './icon-192.png',
+        tag: 'asta-alarm-' + Date.now(),
+        requireInteraction: true
+      });
+    }
+    putarBeep();
+    // Hapus dari daftar
+    const keys = Array.from(perintahAktif.keys());
+    const lastKey = keys[keys.length - 1];
+    batalkanPerintah(lastKey);
+  }, jedaMs);
+  
+  const jamStr = String(jam).padStart(2, '0');
+  const menStr = String(menit).padStart(2, '0');
+  
+  const id = daftarkanPerintah('⏰ Alarm', `"${pesan}" @ ${jamStr}:${menStr}`, timeoutId);
+  return `✅ Pengingat diatur: ${jamStr}:${menStr} (±${jedaMenit} menit lagi)\n#${id} — "${pesan}"`;
+}
+
+function buatTimerWeb(detik, pesan) {
+  const timeoutId = setTimeout(() => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('⏱️ Timer Selesai', {
+        body: pesan,
+        icon: './icon-192.png',
+        tag: 'asta-timer-' + Date.now(),
+        requireInteraction: true
+      });
+    }
+    putarBeep();
+    const keys = Array.from(perintahAktif.keys());
+    const lastKey = keys[keys.length - 1];
+    batalkanPerintah(lastKey);
+  }, detik * 1000);
+  
+  const id = daftarkanPerintah('⏱️ Timer', `"${pesan}" (${detik}d)`, timeoutId);
+  return `⏱️ Timer ${detik} detik dimulai\n#${id} — "${pesan}"`;
+}
+
+function putarBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    for (let i = 0; i < 3; i++) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.value = 0.3;
+      osc.start(ctx.currentTime + i * 0.4);
+      osc.stop(ctx.currentTime + i * 0.4 + 0.2);
+    }
+  } catch (e) {
+    console.warn('Audio gagal:', e);
+  }
+}
+
+// ===== PENCARIAN WEB =====
+async function cariWeb(kueri) {
+  try {
+    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(kueri)}&format=json&no_html=1&skip_disambig=1`;
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    let hasil = '';
+    if (data.AbstractText) {
+      hasil += `**${data.Heading || kueri}**\n${data.AbstractText}\n`;
+      if (data.AbstractURL) hasil += `\nSumber: ${data.AbstractURL}`;
+    } else if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+      hasil += `Hasil untuk "${kueri}":\n\n`;
+      data.RelatedTopics.slice(0, 3).forEach(topic => {
+        if (topic.Text) {
+          hasil += `• ${topic.Text}\n`;
+        }
+      });
+    } else {
+      hasil = `Tidak ada hasil spesifik untuk "${kueri}".`;
+    }
+    
+    return `🔍 Hasil pencarian:\n\n${hasil}`;
+  } catch (e) {
+    return `️ Gagal mencari: ${e.message}`;
+  }
+}
+
+// ===== PROSESOR RESPONS GEMINI =====
+async function prosesResponsDenganTools(dataGemini) {
+  const candidates = dataGemini.candidates || [];
+  if (!candidates.length) return { teks: "Maaf, Asta tidak bisa merespons.", cmdBadge: null };
+
+  const parts = candidates[0].content?.parts || [];
+  let teksBalasan = "";
+  const fungsiYangDipanggil = [];
+
+  for (const part of parts) {
+    if (part.text) teksBalasan += part.text;
+    if (part.functionCall) fungsiYangDipanggil.push(part.functionCall);
+  }
+
+  for (const fn of fungsiYangDipanggil) {
+    let hasil;
+    switch (fn.name) {
+      case "setAlarm":
+        hasil = buatPengingatWeb(fn.args.jam, fn.args.menit, fn.args.pesan);
+        break;
+      case "setTimer":
+        hasil = buatTimerWeb(fn.args.detik, fn.args.pesan);
+        break;
+      case "cariWeb":
+        hasil = await cariWeb(fn.args.kueri);
+        break;
+      case "bukaBrowser":
+        window.open(fn.args.url, '_blank');
+        hasil = `🌐 Membuka ${fn.args.url}`;
+        break;
+      default:
+        hasil = `⚠️ Fungsi ${fn.name} belum dikenali.`;
+    }
+    teksBalasan += (teksBalasan ? "\n\n" : "") + hasil;
+  }
+
+  return { teks: teksBalasan || "✅", cmdBadge: null };
+}
+
+// ===== IZIN NOTIFIKASI =====
+if ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+
+console.log('✅ Asta Tools dimuat — Function Calling siap!');
+</script>
 </body>
 </html>
