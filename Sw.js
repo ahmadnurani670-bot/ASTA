@@ -1,4 +1,4 @@
-const NAMA = 'asta-v5'; // VERSI BARU: Memaksa clear cache lama
+const NAMA = 'asta-v6'; // VERSI BARU - memaksa clear cache
 const ASET = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
