@@ -1665,5 +1665,67 @@ if ('Notification' in window && Notification.permission === 'default') {
 
 console.log('✅ Asta Tools dimuat — Function Calling siap!');
 </script>
+  <script>
+// Deteksi apakah berjalan di Android wrapper
+const isAndroidWrapper = () => typeof window.AstaNative !== 'undefined';
+
+if (isAndroidWrapper()) {
+  console.log('✅ Asta berjalan di Android wrapper');
+  
+  // Inisialisasi TTS native
+  window.AstaNative.initTTS();
+  
+  // Override speechSynthesis dengan TTS native Android
+  if ('speechSynthesis' in window) {
+    const originalSpeak = window.speechSynthesis.speak.bind(window.speechSynthesis);
+    const originalCancel = window.speechSynthesis.cancel.bind(window.speechSynthesis);
+    
+    window.speechSynthesis.speak = function(utterance) {
+      if (utterance && utterance.text) {
+        window.AstaNative.bicaraNative(utterance.text);
+      }
+    };
+    
+    window.speechSynthesis.cancel = function() {
+      window.AstaNative.berhentiBicara();
+    };
+    
+    console.log('✅ TTS native Android diaktifkan');
+  } else {
+    // Jika speechSynthesis tidak ada sama sekali, buat shim
+    window.speechSynthesis = {
+      speak: function(utterance) {
+        if (utterance && utterance.text) {
+          window.AstaNative.bicaraNative(utterance.text);
+        }
+      },
+      cancel: function() {
+        window.AstaNative.berhentiBicara();
+      },
+      getVoices: function() { return []; },
+      paused: false,
+      pending: false,
+      speaking: false
+    };
+    console.log('✅ speechSynthesis shim dibuat');
+  }
+  
+  // Override SpeechRecognition dengan native Android
+  if (!('SpeechRecognition' in window) && !('webkitSpeechRecognition' in window)) {
+    window.SpeechRecognition = function() {
+      this.start = () => window.AstaNative.mulaiDengar();
+      this.stop = () => window.AstaNative.berhentiDengar();
+      this.abort = () => window.AstaNative.berhentiDengar();
+      this.lang = 'id-ID';
+      this.continuous = false;
+      this.interimResults = false;
+    };
+    window.webkitSpeechRecognition = window.SpeechRecognition;
+    console.log('✅ SpeechRecognition shim dibuat');
+  }
+} else {
+  console.log('ℹ️ Asta berjalan di browser biasa');
+}
+</script>
 </body>
 </html>
