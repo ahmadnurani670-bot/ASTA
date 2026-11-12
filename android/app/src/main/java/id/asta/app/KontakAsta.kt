@@ -83,19 +83,47 @@ object KontakAsta {
         }
     }
 
-    private fun cariBaris(ctx: Context, nomor: String, mime: String): Long? {
-        if (ctx.checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) return null
+    private class Baris(val id: Long?, val alasan: String)
+
+    private fun cariBaris(ctx: Context, nomor: String, mime: String): Baris {
+        if (ctx.checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            return Baris(null, "izin Kontak belum diberikan (Setelan Asta > Izinkan kalender dan kontak)")
+        }
         val akhir = nomor.takeLast(9)
-        val proj = arrayOf(ContactsContract.Data._ID, ContactsContract.Data.DATA1)
+        // 1. Cari kontak ponsel dengan nomor itu (tahan beda format 0812 / +62812).
+        val idKontak = HashSet<Long>()
+        for (varian in listOf("+$nomor", nomor)) {
+            try {
+                val u = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(varian))
+                ctx.contentResolver.query(u, arrayOf(ContactsContract.PhoneLookup._ID), null, null, null)?.use { c ->
+                    while (c.moveToNext()) idKontak.add(c.getLong(0))
+                }
+            } catch (e: Exception) {
+                // lanjut ke cara berikutnya
+            }
+        }
+        // 2. Cari baris panggilan WhatsApp milik kontak itu, atau yang nomornya cocok.
+        var total = 0
+        var cocok: Long? = null
+        val proj = arrayOf(ContactsContract.Data._ID, ContactsContract.Data.DATA1, ContactsContract.Data.CONTACT_ID)
         ctx.contentResolver.query(
             ContactsContract.Data.CONTENT_URI, proj, ContactsContract.Data.MIMETYPE + "=?", arrayOf(mime), null,
         )?.use { c ->
             while (c.moveToNext()) {
+                total++
                 val d = (c.getString(1) ?: "").filter { it.isDigit() }
-                if (d.isNotEmpty() && d.endsWith(akhir)) return c.getLong(0)
+                val sama = (d.isNotEmpty() && d.endsWith(akhir)) || idKontak.contains(c.getLong(2))
+                if (cocok == null && sama) cocok = c.getLong(0)
             }
         }
-        return null
+        val hasil = cocok
+        if (hasil != null) return Baris(hasil, "")
+        val alasan = when {
+            total == 0 -> "di buku kontak ponsel tidak ada baris panggilan WhatsApp sama sekali (WhatsApp belum menyinkronkan kontak, atau versinya tidak menyediakannya)"
+            idKontak.isEmpty() -> "nomor ini belum tersimpan di kontak ponsel (ada $total baris WhatsApp lain)"
+            else -> "kontak ponselnya ada, tapi belum punya baris panggilan WhatsApp (nomornya mungkin belum terdaftar di WhatsApp atau belum tersinkron)"
+        }
+        return Baris(null, alasan)
     }
 
     fun teleponWhatsApp(ctx: Context, nama: String, video: Boolean): String {
@@ -109,7 +137,8 @@ object KontakAsta {
             return "Pengguna tidak menyetujui panggilan ke " + k.nama + "."
         }
         val mime = if (video) MIME_VIDEO else MIME_SUARA
-        val id = cariBaris(ctx, k.nomor, mime)
+        val baris = cariBaris(ctx, k.nomor, mime)
+        val id = baris.id
         if (id != null) {
             val i = Intent(Intent.ACTION_VIEW)
             i.setDataAndType(Uri.parse("content://com.android.contacts/data/$id"), mime)
@@ -121,7 +150,7 @@ object KontakAsta {
         val i = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/" + k.nomor))
         i.setPackage(WA)
         CatatanAsta.tulis(ctx, "Membuka chat WhatsApp " + k.nama + " (baris panggilan tidak ditemukan)")
-        return "Nomor " + k.nama + " belum terhubung dengan WhatsApp di buku kontak ponsel, atau izin kontak belum diberikan, jadi panggilan langsung tidak bisa dimulai. " +
+        return "Panggilan langsung ke " + k.nama + " tidak bisa dimulai karena " + baris.alasan + ". " +
             Pembuka.buka(ctx, i, "Chat WhatsApp " + k.nama) + " Pengguna bisa mengetuk ikon telepon di sana."
     }
 }

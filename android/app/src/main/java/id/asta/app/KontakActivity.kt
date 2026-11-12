@@ -2,7 +2,9 @@ package id.asta.app
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.Intent
 import android.os.Bundle
+import android.provider.ContactsContract
 import android.text.InputType
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -32,7 +34,7 @@ class KontakActivity : Activity() {
     private fun bangun() {
         isi.removeAllViews()
         isi.addView(buatTeks("Kontak Asta", 22f, Warna.CYAN, true))
-        isi.addView(buatTeks("Asta hanya boleh menelepon kontak di daftar ini, dan selalu meminta persetujuan Anda dulu. Ketuk lama untuk menghapus.", 13f, Warna.REDUP))
+        isi.addView(buatTeks("Asta hanya boleh menelepon kontak di daftar ini, dan selalu meminta persetujuan Anda dulu. Ketuk satu kontak untuk menyimpannya ke kontak ponsel atau menghapusnya. Panggilan WhatsApp hanya bisa dimulai kalau nomornya juga tersimpan di kontak ponsel.", 13f, Warna.REDUP))
         isi.addView(buatTombol("Tambah kontak") { tambah() }, paramLebar())
         val daftar = KontakAsta.semua(this)
         if (daftar.isEmpty()) {
@@ -42,15 +44,29 @@ class KontakActivity : Activity() {
         for (k in daftar) {
             val t = buatTeks(k.nama + "\n" + k.nomor, 15f, Warna.TEKS)
             t.setPadding(0, dp(10), 0, dp(10))
-            t.setOnLongClickListener {
+            t.setOnClickListener {
                 AlertDialog.Builder(this)
-                    .setMessage("Hapus " + k.nama + " dari daftar?")
-                    .setPositiveButton("Hapus") { _, _ -> KontakAsta.hapus(this, k.nama); bangun() }
+                    .setTitle(k.nama)
+                    .setItems(arrayOf("Simpan ke kontak ponsel (agar WhatsApp bisa dipanggil)", "Hapus dari daftar Asta")) { _, w ->
+                        if (w == 0) simpanKePonsel(k) else { KontakAsta.hapus(this, k.nama); bangun() }
+                    }
                     .setNegativeButton("Batal", null)
                     .show()
-                true
             }
             isi.addView(t)
+        }
+    }
+
+    private fun simpanKePonsel(k: Kontak) {
+        val i = Intent(Intent.ACTION_INSERT)
+        i.type = ContactsContract.Contacts.CONTENT_TYPE
+        i.putExtra(ContactsContract.Intents.Insert.NAME, k.nama)
+        i.putExtra(ContactsContract.Intents.Insert.PHONE, "+" + k.nomor)
+        try {
+            startActivity(i)
+            Toast.makeText(this, "Simpan kontaknya, lalu tunggu WhatsApp menyinkronkan (atau buka WhatsApp dan segarkan kontak).", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Tidak ada aplikasi Kontak untuk menyimpan.", Toast.LENGTH_LONG).show()
         }
     }
 
