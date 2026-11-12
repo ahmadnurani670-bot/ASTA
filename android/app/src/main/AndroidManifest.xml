@@ -69,6 +69,8 @@
         <activity android:name=".CatatanActivity" android:exported="false" />
         <activity android:name=".IzinActivity" android:exported="false" />
         <activity android:name=".KontakActivity" android:exported="false" />
+        <activity android:name=".DiagnosaActivity" android:exported="false" />
+        <activity android:name=".SinkronActivity" android:exported="false" />
         <activity android:name=".PengingatActivity" android:exported="false" />
 
         <activity

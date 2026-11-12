@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import org.json.JSONObject
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -43,6 +44,36 @@ object Setelan {
     fun modelChat(ctx: Context): String = teks(ctx, "model_chat", MODEL_CHAT).ifBlank { MODEL_CHAT }
 
     fun modelKuat(ctx: Context): String = teks(ctx, "model_kuat", MODEL_KUAT).ifBlank { MODEL_KUAT }
+
+    /** Pilihan yang ikut tersinkron antar HP. Kunci API dan pilihan khusus perangkat tidak ikut. */
+    private val KUNCI_TEKS = listOf("nama", "mode", "laju", "model_chat", "model_kuat")
+
+    fun ekspor(ctx: Context): JSONObject {
+        val n = JSONObject()
+        for (k in KUNCI_TEKS) n.put(k, teks(ctx, k))
+        n.put("suara", bool(ctx, "suara", true))
+        return JSONObject().put("diubah", teks(ctx, "setelan_diubah", "0").toLongOrNull() ?: 0L).put("nilai", n)
+    }
+
+    fun impor(ctx: Context, diubah: Long, n: JSONObject) {
+        for (k in KUNCI_TEKS) if (n.has(k)) simpanTeks(ctx, k, n.optString(k))
+        if (n.has("suara")) simpanBool(ctx, "suara", n.optBoolean("suara", true))
+        simpanTeks(ctx, "setelan_diubah", diubah.toString())
+    }
+
+    fun stempel(ctx: Context) {
+        simpanTeks(ctx, "setelan_diubah", System.currentTimeMillis().toString())
+    }
+
+    fun rahasia(ctx: Context, nama: String): String {
+        val s = teks(ctx, "rhs_$nama")
+        if (s.isEmpty()) return ""
+        return try { Rahasia.buka(s) } catch (e: Exception) { "" }
+    }
+
+    fun simpanRahasia(ctx: Context, nama: String, nilai: String) {
+        simpanTeks(ctx, "rhs_$nama", if (nilai.isBlank()) "" else Rahasia.kunci(nilai.trim()))
+    }
 
     fun kunciApi(ctx: Context): String {
         val s = teks(ctx, "kunci_enc")

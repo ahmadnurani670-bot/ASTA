@@ -132,6 +132,7 @@ class MainActivity : Activity(), Asta.Pendengar {
         Asta.daftarkan(this)
         keadaan(Asta.keadaan)
         AsService.mulai(this)
+        Sinkron.jadwalkan(this, 1500)
         if (Izin.dijeda(this)) tambah("info", "Asta sedang dihentikan: tindakan ke aplikasi lain ditolak. Lanjutkan di layar Izin.")
     }
 

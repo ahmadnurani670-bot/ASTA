@@ -79,7 +79,9 @@ object Otak {
     fun lupakan(ctx: Context) {
         riwayat.clear()
         dimuat = true
+        Setelan.simpanTeks(ctx, "lupa_sampai", System.currentTimeMillis().toString())
         try { berkas(ctx).delete() } catch (e: Exception) { }
+        Sinkron.jadwalkan(ctx)
     }
 
     /** Pasangan (dari, teks) untuk ditampilkan lagi saat aplikasi dibuka. */
@@ -94,8 +96,48 @@ object Otak {
         return hasil
     }
 
-    private fun giliran(peran: String, teks: String): JSONObject =
-        JSONObject().put("role", peran).put("parts", JSONArray().put(JSONObject().put("text", teks)))
+    private fun giliran(peran: String, teks: String, t: Long = System.currentTimeMillis()): JSONObject =
+        JSONObject().put("role", peran).put("t", t).put("parts", JSONArray().put(JSONObject().put("text", teks)))
+
+    private fun teksDari(r: JSONObject): String = r.optJSONArray("parts")?.optJSONObject(0)?.optString("text", "") ?: ""
+
+    /** Salinan tanpa penanda waktu, karena Gemini menolak kolom yang tidak dikenal. */
+    private fun bersih(r: JSONObject): JSONObject =
+        JSONObject().put("role", r.optString("role")).put("parts", r.optJSONArray("parts") ?: JSONArray())
+
+    @Synchronized
+    fun ekspor(ctx: Context): JSONObject {
+        muat(ctx)
+        val a = JSONArray()
+        for (r in riwayat) a.put(JSONObject().put("t", r.optLong("t", 0L)).put("role", r.optString("role")).put("text", teksDari(r)))
+        return JSONObject().put("lupa", Setelan.teks(ctx, "lupa_sampai", "0").toLongOrNull() ?: 0L).put("isi", a)
+    }
+
+    @Synchronized
+    fun impor(ctx: Context, lupaRemote: Long, remote: JSONArray) {
+        muat(ctx)
+        val lupa = maxOf(Setelan.teks(ctx, "lupa_sampai", "0").toLongOrNull() ?: 0L, lupaRemote)
+        val peta = LinkedHashMap<String, JSONObject>()
+        fun masuk(o: JSONObject) {
+            val t = o.optLong("t", 0L)
+            if (lupa > 0 && t <= lupa) return
+            val kunci = t.toString() + "|" + o.optString("role") + "|" + teksDari(o)
+            if (!peta.containsKey(kunci)) peta[kunci] = o
+        }
+        for (r in riwayat) masuk(r)
+        for (i in 0 until remote.length()) {
+            val o = remote.getJSONObject(i)
+            masuk(giliran(o.optString("role"), o.optString("text"), o.optLong("t", 0L)))
+        }
+        val urut = ArrayList(peta.values)
+        urut.sortBy { it.optLong("t", 0L) }
+        while (urut.size > MAKS) urut.removeAt(0)
+        while (urut.isNotEmpty() && urut[0].optString("role") != "user") urut.removeAt(0)
+        riwayat.clear()
+        riwayat.addAll(urut)
+        Setelan.simpanTeks(ctx, "lupa_sampai", lupa.toString())
+        simpan(ctx)
+    }
 
     fun tanya(ctx: Context, teks: String, lampiran: Lampiran?, saatAlat: (String) -> Unit): String {
         val app = ctx.applicationContext
@@ -110,7 +152,7 @@ object Otak {
         }
         bagian.put(JSONObject().put("text", if (teks.isBlank()) "Jelaskan isi lampiran ini." else teks))
         val kerja = ArrayList<JSONObject>()
-        synchronized(this) { kerja.addAll(riwayat) }
+        synchronized(this) { for (r in riwayat) kerja.add(bersih(r)) }
         kerja.add(JSONObject().put("role", "user").put("parts", bagian))
 
         val model = if (lampiran != null) Setelan.modelKuat(app) else Setelan.modelChat(app)
@@ -181,6 +223,7 @@ object Otak {
             while (riwayat.size > MAKS) riwayat.removeAt(0)
             simpan(app)
         }
+        Sinkron.jadwalkan(app, 8000)
         return jawaban
     }
 }

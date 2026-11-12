@@ -18,24 +18,33 @@ object Kalender {
     private val formatJam = SimpleDateFormat("HH:mm", Locale("id", "ID"))
     private val formatTgl = SimpleDateFormat("EEE, d MMM", Locale("id", "ID"))
 
-    private fun izin(ctx: Context): Boolean =
-        ctx.checkSelfPermission(Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED &&
-            ctx.checkSelfPermission(Manifest.permission.WRITE_CALENDAR) == PackageManager.PERMISSION_GRANTED
+    private fun izinBaca(ctx: Context): Boolean =
+        ctx.checkSelfPermission(Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
 
-    private fun idKalender(ctx: Context): Long? {
-        val proj = arrayOf(CalendarContract.Calendars._ID, CalendarContract.Calendars.IS_PRIMARY)
-        val pilih = CalendarContract.Calendars.VISIBLE + "=1 AND " + CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL + ">=?"
-        val arg = arrayOf(CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR.toString())
-        ctx.contentResolver.query(CalendarContract.Calendars.CONTENT_URI, proj, pilih, arg, null)?.use { c ->
-            var pertama: Long? = null
+    private fun izin(ctx: Context): Boolean =
+        izinBaca(ctx) && ctx.checkSelfPermission(Manifest.permission.WRITE_CALENDAR) == PackageManager.PERMISSION_GRANTED
+
+    class Kal(val id: Long, val nama: String, val akun: String, val jenis: String, val akses: Int, val tampil: Boolean, val utama: Boolean) {
+        val bisaTulis: Boolean get() = akses >= CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR
+    }
+
+    /** Semua kalender di ponsel, diurutkan: akun Google milik sendiri dan yang tampil lebih dulu. Tanpa kolom yang tidak ada di semua ponsel. */
+    fun daftarKalender(ctx: Context): List<Kal> {
+        val proj = arrayOf(
+            CalendarContract.Calendars._ID, CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, CalendarContract.Calendars.ACCOUNT_NAME,
+            CalendarContract.Calendars.ACCOUNT_TYPE, CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL,
+            CalendarContract.Calendars.VISIBLE, CalendarContract.Calendars.OWNER_ACCOUNT,
+        )
+        val hasil = ArrayList<Kal>()
+        ctx.contentResolver.query(CalendarContract.Calendars.CONTENT_URI, proj, null, null, null)?.use { c ->
             while (c.moveToNext()) {
-                val id = c.getLong(0)
-                if (pertama == null) pertama = id
-                if (c.getInt(1) == 1) return id
+                val akun = c.getString(2) ?: ""
+                hasil.add(Kal(c.getLong(0), c.getString(1) ?: "", akun, c.getString(3) ?: "", c.getInt(4), c.getInt(5) == 1,
+                    akun.isNotEmpty() && akun == (c.getString(6) ?: "")))
             }
-            return pertama
         }
-        return null
+        return hasil.sortedWith(compareByDescending<Kal> { it.utama && it.jenis == "com.google" }
+            .thenByDescending { it.utama }.thenByDescending { it.tampil }.thenByDescending { it.jenis == "com.google" })
     }
 
     private fun rentang(ctx: Context, awal: Long, akhir: Long, maks: Int): List<String> {
@@ -66,11 +75,11 @@ object Kalender {
     }
 
     fun lihat(ctx: Context, dari: String, sampai: String): String {
-        if (!izin(ctx)) return BELUM
+        if (!izinBaca(ctx)) return BELUM
         val awal = if (dari.isBlank()) System.currentTimeMillis() else (Alarm.parseWaktu(dari) ?: return "Format waktu 'dari' tidak dikenali. Pakai yyyy-MM-ddTHH:mm.")
         val akhir = if (sampai.isBlank()) awal + 7L * 24 * 3600 * 1000 else (Alarm.parseWaktu(sampai) ?: return "Format waktu 'sampai' tidak dikenali. Pakai yyyy-MM-ddTHH:mm.")
         if (akhir <= awal) return "Rentang waktu tidak valid."
-        val baris = rentang(ctx, awal, akhir, 30)
+        val baris = try { rentang(ctx, awal, akhir, 30) } catch (e: Exception) { return "Gagal membaca kalender: " + e.javaClass.simpleName + " " + (e.message ?: "") }
         return if (baris.isEmpty()) "Tidak ada acara pada rentang itu." else baris.joinToString("\n")
     }
 
@@ -80,18 +89,32 @@ object Kalender {
         val ms = Alarm.parseWaktu(mulai) ?: return "Format waktu mulai tidak dikenali. Pakai yyyy-MM-ddTHH:mm."
         val me = if (selesai.isBlank()) ms + 3600_000L else (Alarm.parseWaktu(selesai) ?: return "Format waktu selesai tidak dikenali.")
         if (me <= ms) return "Waktu selesai harus setelah waktu mulai."
-        val idK = idKalender(ctx) ?: return "Tidak ada kalender yang bisa ditulis di ponsel ini. Tambahkan akun Google di Pengaturan Android."
-        val bentrok = rentang(ctx, ms, me, 5)
+        val tulis = try { daftarKalender(ctx).filter { it.bisaTulis } } catch (e: Exception) { return "Gagal membaca daftar kalender: " + e.javaClass.simpleName + " " + (e.message ?: "") }
+        if (tulis.isEmpty()) return "Tidak ada kalender yang bisa ditulis di ponsel ini. Pengguna perlu login akun Google dan mengaktifkan sinkron Kalender di Pengaturan Android, atau membuka aplikasi Google Kalender sekali."
+        val bentrok = try { rentang(ctx, ms, me, 5) } catch (e: Exception) { emptyList() }
 
-        val v = ContentValues()
-        v.put(CalendarContract.Events.CALENDAR_ID, idK)
-        v.put(CalendarContract.Events.TITLE, judul.trim())
-        v.put(CalendarContract.Events.DTSTART, ms)
-        v.put(CalendarContract.Events.DTEND, me)
-        v.put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
-        if (lokasi.isNotBlank()) v.put(CalendarContract.Events.EVENT_LOCATION, lokasi.trim())
-        val uri = ctx.contentResolver.insert(CalendarContract.Events.CONTENT_URI, v) ?: return "Gagal menambah acara."
-        val id = ContentUris.parseId(uri)
+        var id = -1L
+        var galat = ""
+        for (k in tulis) {
+            try {
+                val v = ContentValues()
+                v.put(CalendarContract.Events.CALENDAR_ID, k.id)
+                v.put(CalendarContract.Events.TITLE, judul.trim())
+                v.put(CalendarContract.Events.DTSTART, ms)
+                v.put(CalendarContract.Events.DTEND, me)
+                v.put(CalendarContract.Events.EVENT_TIMEZONE, TimeZone.getDefault().id)
+                if (lokasi.isNotBlank()) v.put(CalendarContract.Events.EVENT_LOCATION, lokasi.trim())
+                val uri = ctx.contentResolver.insert(CalendarContract.Events.CONTENT_URI, v)
+                if (uri != null) {
+                    id = ContentUris.parseId(uri)
+                    break
+                }
+                galat = "penyedia kalender menolak (kalender \"" + k.nama + "\")"
+            } catch (e: Exception) {
+                galat = e.javaClass.simpleName + " " + (e.message ?: "") + " (kalender \"" + k.nama + "\")"
+            }
+        }
+        if (id < 0) return "Gagal menambah acara: $galat"
 
         val menit = ingat.trim().toIntOrNull() ?: 10
         if (menit > 0) {

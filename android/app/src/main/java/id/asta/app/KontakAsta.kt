@@ -39,10 +39,30 @@ object KontakAsta {
         return hasil
     }
 
-    private fun simpan(ctx: Context, daftar: List<Kontak>) {
+    private fun simpanMentah(ctx: Context, daftar: List<Kontak>, stempel: Long) {
         val a = JSONArray()
         for (k in daftar) a.put(JSONObject().put("nama", k.nama).put("nomor", k.nomor))
-        prefs(ctx).edit().putString("daftar", a.toString()).apply()
+        prefs(ctx).edit().putString("daftar", a.toString()).putLong("diubah", stempel).apply()
+    }
+
+    private fun simpan(ctx: Context, daftar: List<Kontak>) {
+        simpanMentah(ctx, daftar, System.currentTimeMillis())
+        Sinkron.jadwalkan(ctx)
+    }
+
+    fun ekspor(ctx: Context): JSONObject {
+        val a = JSONArray()
+        for (k in semua(ctx)) a.put(JSONObject().put("nama", k.nama).put("nomor", k.nomor))
+        return JSONObject().put("diubah", prefs(ctx).getLong("diubah", 0L)).put("daftar", a)
+    }
+
+    fun impor(ctx: Context, diubah: Long, daftar: JSONArray) {
+        val d = ArrayList<Kontak>()
+        for (i in 0 until daftar.length()) {
+            val o = daftar.getJSONObject(i)
+            d.add(Kontak(o.getString("nama"), o.getString("nomor")))
+        }
+        simpanMentah(ctx, d, diubah)
     }
 
     /** Mengembalikan teks galat, atau null kalau berhasil. */
@@ -107,7 +127,7 @@ object KontakAsta {
         var cocok: Long? = null
         val proj = arrayOf(ContactsContract.Data._ID, ContactsContract.Data.DATA1, ContactsContract.Data.CONTACT_ID)
         ctx.contentResolver.query(
-            ContactsContract.Data.CONTENT_URI, proj, ContactsContract.Data.MIMETYPE + "=?", arrayOf(mime), null,
+            ContactsContract.Data.CONTENT_URI, proj, ContactsContract.Data.MIMETYPE + " LIKE ?", arrayOf("%" + mime.substringAfter("vnd.com.")), null,
         )?.use { c ->
             while (c.moveToNext()) {
                 total++
@@ -152,5 +172,40 @@ object KontakAsta {
         CatatanAsta.tulis(ctx, "Membuka chat WhatsApp " + k.nama + " (baris panggilan tidak ditemukan)")
         return "Panggilan langsung ke " + k.nama + " tidak bisa dimulai karena " + baris.alasan + ". " +
             Pembuka.buka(ctx, i, "Chat WhatsApp " + k.nama) + " Pengguna bisa mengetuk ikon telepon di sana."
+    }
+
+    /** Laporan pemeriksaan untuk layar Periksa: apa yang terlihat Asta di ponsel. */
+    fun diagnosa(ctx: Context): String {
+        val b = StringBuilder()
+        b.append("WhatsApp terpasang: ").append(if (ctx.packageManager.getLaunchIntentForPackage(WA) != null) "ya" else "TIDAK").append('\n')
+        try {
+            b.append("Versi WhatsApp: ").append(ctx.packageManager.getPackageInfo(WA, 0).versionName).append('\n')
+        } catch (e: Exception) {
+            b.append("Versi WhatsApp: tidak terbaca\n")
+        }
+        if (ctx.checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            b.append("Izin Kontak: BELUM diberikan\n")
+            return b.toString()
+        }
+        b.append("Izin Kontak: ya\n")
+        val jumlah = HashMap<String, Int>()
+        try {
+            ctx.contentResolver.query(
+                ContactsContract.Data.CONTENT_URI, arrayOf(ContactsContract.Data.MIMETYPE),
+                ContactsContract.Data.MIMETYPE + " LIKE ?", arrayOf("%whatsapp%"), null,
+            )?.use { c -> while (c.moveToNext()) { val m = c.getString(0) ?: ""; jumlah[m] = (jumlah[m] ?: 0) + 1 } }
+        } catch (e: Exception) {
+            b.append("Gagal membaca data kontak: ").append(e.javaClass.simpleName).append('\n')
+        }
+        if (jumlah.isEmpty()) b.append("Baris data WhatsApp di buku kontak: 0 (WhatsApp belum menyinkronkan kontak)\n")
+        for ((m, n) in jumlah) b.append("  ").append(m.substringAfter("vnd.com.")).append(": ").append(n).append('\n')
+        val d = semua(ctx)
+        if (d.isEmpty()) b.append("Kontak Asta: kosong\n")
+        for (k in d) {
+            val s = cariBaris(ctx, k.nomor, MIME_SUARA)
+            b.append("Kontak Asta ").append(k.nama).append(" (").append(k.nomor).append("): ")
+                .append(if (s.id != null) "siap ditelepon" else "TIDAK bisa, " + s.alasan).append('\n')
+        }
+        return b.toString()
     }
 }

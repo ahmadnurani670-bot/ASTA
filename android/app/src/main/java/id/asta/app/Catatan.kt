@@ -5,10 +5,12 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 
-class Nota(val id: String, val waktu: Long, val teks: String)
+/** hapus > 0 berarti catatan sudah dihapus (batu nisan) supaya penghapusan ikut tersinkron. */
+class Nota(val id: String, val waktu: Long, val teks: String, val hapus: Long = 0L)
 
 object Catatan {
     private val kunci = Any()
+    private const val SIMPAN_BATU_NISAN_MS = 30L * 24 * 3600 * 1000
 
     private fun berkas(ctx: Context) = File(ctx.applicationContext.filesDir, "catatan.json")
 
@@ -20,7 +22,7 @@ object Catatan {
             val a = JSONArray(f.readText())
             for (i in 0 until a.length()) {
                 val o = a.getJSONObject(i)
-                hasil.add(Nota(o.getString("id"), o.optLong("t", 0L), o.optString("teks", "")))
+                hasil.add(Nota(o.getString("id"), o.optLong("t", 0L), o.optString("teks", ""), o.optLong("x", 0L)))
             }
         } catch (e: Exception) {
             // berkas rusak: pakai yang terbaca
@@ -29,25 +31,47 @@ object Catatan {
     }
 
     private fun tulis(ctx: Context, daftar: List<Nota>) {
+        val batas = System.currentTimeMillis() - SIMPAN_BATU_NISAN_MS
         val a = JSONArray()
-        for (n in daftar) a.put(JSONObject().put("id", n.id).put("t", n.waktu).put("teks", n.teks))
+        for (n in daftar) {
+            if (n.hapus in 1 until batas) continue
+            val o = JSONObject().put("id", n.id).put("t", n.waktu).put("teks", n.teks)
+            if (n.hapus > 0) o.put("x", n.hapus)
+            a.put(o)
+        }
         berkas(ctx).writeText(a.toString())
     }
 
-    fun semua(ctx: Context): List<Nota> = synchronized(kunci) { baca(ctx) }
+    fun semua(ctx: Context): List<Nota> = synchronized(kunci) { baca(ctx).filter { it.hapus == 0L } }
 
-    fun tambah(ctx: Context, teks: String): String = synchronized(kunci) {
-        val d = baca(ctx)
-        val n = Nota("n" + System.currentTimeMillis() + "-" + (d.size + 1), System.currentTimeMillis(), teks)
-        d.add(n)
-        tulis(ctx, d)
-        n.id
+    fun semuaMentah(ctx: Context): List<Nota> = synchronized(kunci) { baca(ctx) }
+
+    fun gantiMentah(ctx: Context, daftar: List<Nota>) {
+        synchronized(kunci) { tulis(ctx, daftar) }
+    }
+
+    fun tambah(ctx: Context, teks: String): String {
+        val id: String
+        synchronized(kunci) {
+            val d = baca(ctx)
+            val sekarang = System.currentTimeMillis()
+            id = "n" + sekarang + "-" + (Math.random() * 1_000_000).toInt()
+            d.add(Nota(id, sekarang, teks))
+            tulis(ctx, d)
+        }
+        Sinkron.jadwalkan(ctx)
+        return id
     }
 
     fun hapus(ctx: Context, id: String) {
         synchronized(kunci) {
             val d = baca(ctx)
-            if (d.removeAll { it.id == id }) tulis(ctx, d)
+            val i = d.indexOfFirst { it.id == id }
+            if (i >= 0 && d[i].hapus == 0L) {
+                d[i] = Nota(d[i].id, d[i].waktu, d[i].teks, System.currentTimeMillis())
+                tulis(ctx, d)
+            }
         }
+        Sinkron.jadwalkan(ctx)
     }
 }

@@ -119,6 +119,12 @@ class SetelanActivity : Activity() {
         isi.addView(buatTombol("Izinkan kalender dan kontak") {
             requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR, Manifest.permission.READ_CONTACTS), 3)
         }, paramLebar())
+        isi.addView(buatTombol("Periksa kalender dan WhatsApp") {
+            startActivity(Intent(this, DiagnosaActivity::class.java))
+        }, paramLebar())
+        isi.addView(buatTombol("Sinkronisasi antar HP") {
+            startActivity(Intent(this, SinkronActivity::class.java))
+        }, paramLebar())
         isi.addView(buatTombol("Kontak Asta (untuk telepon WhatsApp)") {
             startActivity(Intent(this, KontakActivity::class.java))
         }, paramLebar())
@@ -153,6 +159,7 @@ class SetelanActivity : Activity() {
     }
 
     private fun simpan() {
+        val sebelum = Setelan.ekspor(this).getJSONObject("nilai").toString()
         val k = kunci.text.toString().trim()
         if (k.isNotEmpty()) {
             Setelan.simpanKunciApi(this, k)
@@ -168,6 +175,10 @@ class SetelanActivity : Activity() {
         Setelan.simpanBool(this, "oto", sOto.isChecked)
         Setelan.simpanBool(this, "latar", sLatar.isChecked)
         Setelan.simpanBool(this, "gelembung", sGelembung.isChecked)
+        if (Setelan.ekspor(this).getJSONObject("nilai").toString() != sebelum) {
+            Setelan.stempel(this)
+            Sinkron.jadwalkan(this)
+        }
         AsService.mulai(this)
     }
 
