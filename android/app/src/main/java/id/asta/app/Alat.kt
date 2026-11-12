@@ -1,8 +1,12 @@
 package id.asta.app
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
@@ -76,6 +80,18 @@ object Alat {
         a.put(fn("buka_aplikasi", "Membuka aplikasi lewat namanya. Hanya untuk aplikasi yang diizinkan.", listOf("nama" to "Nama aplikasi, misalnya WhatsApp.")))
         a.put(fn("kirim_teks_ke_aplikasi", "Menyiapkan teks di aplikasi lain lewat menu bagikan. Pengguna diminta menyetujui dan menekan kirim sendiri. Hanya untuk aplikasi tingkat 2 ke atas.",
             listOf("nama" to "Nama aplikasi tujuan.", "teks" to "Teks yang akan dikirim.")))
+        a.put(fn("lihat_jadwal", "Melihat acara di Google Kalender pengguna. Tanpa parameter, menampilkan 7 hari ke depan.", emptyList(),
+            listOf("dari" to "Awal rentang, yyyy-MM-ddTHH:mm.", "sampai" to "Akhir rentang, yyyy-MM-ddTHH:mm.")))
+        a.put(fn("tambah_acara", "Menambah acara ke Google Kalender pengguna. Periksa jadwal dulu dengan lihat_jadwal bila perlu.",
+            listOf("judul" to "Judul acara.", "mulai" to "Waktu mulai setempat, yyyy-MM-ddTHH:mm."),
+            listOf("selesai" to "Waktu selesai, yyyy-MM-ddTHH:mm (bawaan: satu jam).", "lokasi" to "Lokasi acara.", "ingatkan_menit" to "Pengingat sekian menit sebelum acara (bawaan 10, isi 0 untuk tanpa pengingat).")))
+        a.put(fn("hapus_acara", "Menghapus acara kalender. Pengguna diminta menyetujui dulu.", listOf("id" to "Nomor acara dari lihat_jadwal.")))
+        a.put(fn("daftar_kontak", "Daftar nama kontak di Kontak Asta yang boleh ditelepon lewat WhatsApp."))
+        a.put(fn("telepon_whatsapp", "Memulai panggilan WhatsApp ke kontak di Kontak Asta. Pengguna diminta menyetujui dulu. Tidak bisa mengakhiri panggilan.",
+            listOf("nama" to "Nama kontak."), listOf("jenis" to "suara (bawaan) atau video.")))
+        a.put(fn("buat_file", "Membuat berkas dari teks lengkap dan menyimpannya di Unduhan/Asta. Untuk laporan, ringkasan, surat, tabel. Format: txt, md, csv, html, pdf, docx, xlsx. Untuk docx, pdf, dan html, awali judul dengan # atau ##. Untuk xlsx dan csv, isi berupa baris dipisah koma.",
+            listOf("nama" to "Nama berkas tanpa ekstensi.", "format" to "txt, md, csv, html, pdf, docx, atau xlsx.", "isi" to "Isi lengkap berkas.")))
+        a.put(fn("salin_teks", "Menyalin teks ke papan klip pengguna.", listOf("teks" to "Teks yang disalin.")))
         a.put(fn("buka_izin_asta", "Membuka layar Izin Asta untuk mengatur izin tiap aplikasi, menghentikan Asta, dan membaca log."))
         return a
     }
@@ -119,6 +135,22 @@ object Alat {
             "daftar_aplikasi" -> Aksi.daftarDiizinkan(ctx)
             "buka_aplikasi" -> Aksi.buka(ctx, args.optString("nama"))
             "kirim_teks_ke_aplikasi" -> Aksi.kirimTeks(ctx, args.optString("nama"), args.optString("teks"))
+            "lihat_jadwal" -> Kalender.lihat(ctx, args.optString("dari"), args.optString("sampai"))
+            "tambah_acara" -> Kalender.tambah(ctx, args.optString("judul"), args.optString("mulai"), args.optString("selesai"),
+                args.optString("lokasi"), args.optString("ingatkan_menit"))
+            "hapus_acara" -> Kalender.hapus(ctx, args.optString("id"))
+            "daftar_kontak" -> KontakAsta.daftarTeks(ctx)
+            "telepon_whatsapp" -> KontakAsta.teleponWhatsApp(ctx, args.optString("nama"), args.optString("jenis").trim().lowercase(Locale.ROOT) == "video")
+            "buat_file" -> Berkas.buat(ctx, args.optString("nama"), args.optString("isi"), args.optString("format"))
+            "salin_teks" -> {
+                val t = args.optString("teks")
+                if (t.isBlank()) return "Teks kosong."
+                Handler(Looper.getMainLooper()).post {
+                    val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    cm.setPrimaryClip(ClipData.newPlainText("asta", t))
+                }
+                "Teks disalin ke papan klip."
+            }
             "buka_izin_asta" -> Pembuka.buka(ctx, Intent(ctx, IzinActivity::class.java), "Izin Asta")
             else -> "Alat tidak dikenal."
         }

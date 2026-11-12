@@ -18,8 +18,12 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
 
     <queries>
+        <package android:name="com.whatsapp" />
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
@@ -64,6 +68,7 @@
         <activity android:name=".SetelanActivity" android:exported="false" />
         <activity android:name=".CatatanActivity" android:exported="false" />
         <activity android:name=".IzinActivity" android:exported="false" />
+        <activity android:name=".KontakActivity" android:exported="false" />
         <activity android:name=".PengingatActivity" android:exported="false" />
 
         <activity

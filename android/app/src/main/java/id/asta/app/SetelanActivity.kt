@@ -116,6 +116,12 @@ class SetelanActivity : Activity() {
         isi.addView(buatTombol("Izinkan notifikasi") {
             if (Build.VERSION.SDK_INT >= 33) requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 2)
         }, paramLebar())
+        isi.addView(buatTombol("Izinkan kalender dan kontak") {
+            requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR, Manifest.permission.READ_CONTACTS), 3)
+        }, paramLebar())
+        isi.addView(buatTombol("Kontak Asta (untuk telepon WhatsApp)") {
+            startActivity(Intent(this, KontakActivity::class.java))
+        }, paramLebar())
         isi.addView(buatTombol("Izin tampil di atas aplikasi lain") {
             startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
         }, paramLebar())
@@ -174,7 +180,9 @@ class SetelanActivity : Activity() {
         super.onResume()
         val mik = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         val atas = Settings.canDrawOverlays(this)
-        infoIzin.text = "Mikrofon: " + (if (mik) "diizinkan" else "belum") + " - Tampil di atas aplikasi lain: " + (if (atas) "diizinkan" else "belum")
+        val kal = checkSelfPermission(Manifest.permission.WRITE_CALENDAR) == PackageManager.PERMISSION_GRANTED
+        val kon = checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+        infoIzin.text = "Kalender: " + (if (kal) "diizinkan" else "belum") + " - Kontak: " + (if (kon) "diizinkan" else "belum") + "\nMikrofon: " + (if (mik) "diizinkan" else "belum") + " - Tampil di atas aplikasi lain: " + (if (atas) "diizinkan" else "belum")
         AsService.mulai(this)
     }
 }

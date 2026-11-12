@@ -10,7 +10,7 @@ object Alarm {
     private fun catatanPresisi(presisi: Boolean): String =
         if (presisi) "" else " Catatan: izin alarm presisi belum aktif, jadi bunyinya bisa terlambat. Aktifkan di layar Pengingat."
 
-    private fun parseWaktu(s: String): Long? {
+    fun parseWaktu(s: String): Long? {
         return try {
             val bersih = s.trim().replace(Regex("(Z|[+-]\\d{2}:?\\d{2})$"), "").replace(' ', 'T')
             LocalDateTime.parse(bersih).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()

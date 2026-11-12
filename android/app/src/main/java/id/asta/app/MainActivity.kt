@@ -71,6 +71,7 @@ class MainActivity : Activity(), Asta.Pendengar {
         baris.addView(tSuara)
         baris.addView(mini("Catatan") { startActivity(Intent(this, CatatanActivity::class.java)) })
         baris.addView(mini("Pengingat") { startActivity(Intent(this, PengingatActivity::class.java)) })
+        baris.addView(mini("Kontak") { startActivity(Intent(this, KontakActivity::class.java)) })
         baris.addView(mini("Izin") { startActivity(Intent(this, IzinActivity::class.java)) })
         baris.addView(mini("Setelan") { startActivity(Intent(this, SetelanActivity::class.java)) })
         val gulirMenu = HorizontalScrollView(this)

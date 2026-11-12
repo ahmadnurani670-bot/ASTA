@@ -1,0 +1,127 @@
+package id.asta.app
+
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.ContactsContract
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.Locale
+
+class Kontak(val nama: String, val nomor: String)
+
+/** Daftar kontak milik Asta (diisi pengguna) dan panggilan WhatsApp ke kontak di daftar itu. */
+object KontakAsta {
+    private const val MIME_SUARA = "vnd.android.cursor.item/vnd.com.whatsapp.voip.call"
+    private const val MIME_VIDEO = "vnd.android.cursor.item/vnd.com.whatsapp.video.call"
+    private const val WA = "com.whatsapp"
+
+    private fun prefs(ctx: Context) = ctx.applicationContext.getSharedPreferences("kontak_asta", Context.MODE_PRIVATE)
+
+    fun normal(nomor: String): String {
+        val d = nomor.filter { it.isDigit() }
+        return if (d.startsWith("0")) "62" + d.substring(1) else d
+    }
+
+    fun semua(ctx: Context): List<Kontak> {
+        val hasil = ArrayList<Kontak>()
+        try {
+            val a = JSONArray(prefs(ctx).getString("daftar", "[]") ?: "[]")
+            for (i in 0 until a.length()) {
+                val o = a.getJSONObject(i)
+                hasil.add(Kontak(o.getString("nama"), o.getString("nomor")))
+            }
+        } catch (e: Exception) {
+            // daftar rusak: pakai yang terbaca
+        }
+        return hasil
+    }
+
+    private fun simpan(ctx: Context, daftar: List<Kontak>) {
+        val a = JSONArray()
+        for (k in daftar) a.put(JSONObject().put("nama", k.nama).put("nomor", k.nomor))
+        prefs(ctx).edit().putString("daftar", a.toString()).apply()
+    }
+
+    /** Mengembalikan teks galat, atau null kalau berhasil. */
+    fun tambah(ctx: Context, nama: String, nomor: String): String? {
+        val n = nama.trim()
+        val no = normal(nomor)
+        if (n.isEmpty()) return "Nama kosong."
+        if (no.length < 8) return "Nomor terlalu pendek. Tulis lengkap, misalnya 0812xxxxxxxx."
+        val d = semua(ctx).filter { !it.nama.equals(n, true) }.toMutableList()
+        d.add(Kontak(n, no))
+        simpan(ctx, d)
+        return null
+    }
+
+    fun hapus(ctx: Context, nama: String) {
+        simpan(ctx, semua(ctx).filter { !it.nama.equals(nama, true) })
+    }
+
+    fun daftarTeks(ctx: Context): String {
+        val d = semua(ctx)
+        if (d.isEmpty()) return "Daftar Kontak Asta masih kosong. Pengguna bisa menambahkannya di layar Kontak."
+        return d.joinToString("\n") { it.nama }
+    }
+
+    private class Hasil(val kontak: Kontak?, val galat: String?)
+
+    private fun cari(ctx: Context, nama: String): Hasil {
+        val q = nama.trim().lowercase(Locale.ROOT)
+        if (q.isEmpty()) return Hasil(null, "Nama kontak kosong.")
+        val semua = semua(ctx)
+        val tepat = semua.filter { it.nama.lowercase(Locale.ROOT) == q }
+        if (tepat.size == 1) return Hasil(tepat[0], null)
+        val mirip = semua.filter { it.nama.lowercase(Locale.ROOT).contains(q) }
+        return when {
+            mirip.size == 1 -> Hasil(mirip[0], null)
+            mirip.isEmpty() -> Hasil(null, "Kontak \"$nama\" tidak ada di daftar Kontak Asta. Pengguna bisa menambahkannya di layar Kontak.")
+            else -> Hasil(null, "Ada beberapa kontak yang cocok: " + mirip.take(5).joinToString(", ") { it.nama } + ". Sebutkan nama yang lebih tepat.")
+        }
+    }
+
+    private fun cariBaris(ctx: Context, nomor: String, mime: String): Long? {
+        if (ctx.checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) return null
+        val akhir = nomor.takeLast(9)
+        val proj = arrayOf(ContactsContract.Data._ID, ContactsContract.Data.DATA1)
+        ctx.contentResolver.query(
+            ContactsContract.Data.CONTENT_URI, proj, ContactsContract.Data.MIMETYPE + "=?", arrayOf(mime), null,
+        )?.use { c ->
+            while (c.moveToNext()) {
+                val d = (c.getString(1) ?: "").filter { it.isDigit() }
+                if (d.isNotEmpty() && d.endsWith(akhir)) return c.getLong(0)
+            }
+        }
+        return null
+    }
+
+    fun teleponWhatsApp(ctx: Context, nama: String, video: Boolean): String {
+        if (Izin.dijeda(ctx)) return "Asta sedang dihentikan oleh pengguna, jadi tidak bisa menelepon."
+        val h = cari(ctx, nama)
+        val k = h.kontak ?: return h.galat ?: "Kontak tidak ditemukan."
+        if (ctx.packageManager.getLaunchIntentForPackage(WA) == null) return "WhatsApp belum terpasang di ponsel ini."
+        val jenis = if (video) "Video call" else "Telepon"
+        if (!Persetujuan.minta(ctx, jenis + " " + k.nama + " lewat WhatsApp", "Asta ingin memulai panggilan WhatsApp ke " + k.nama + ".")) {
+            CatatanAsta.tulis(ctx, "Pengguna menolak panggilan WhatsApp ke " + k.nama)
+            return "Pengguna tidak menyetujui panggilan ke " + k.nama + "."
+        }
+        val mime = if (video) MIME_VIDEO else MIME_SUARA
+        val id = cariBaris(ctx, k.nomor, mime)
+        if (id != null) {
+            val i = Intent(Intent.ACTION_VIEW)
+            i.setDataAndType(Uri.parse("content://com.android.contacts/data/$id"), mime)
+            i.setPackage(WA)
+            CatatanAsta.tulis(ctx, "Memulai panggilan WhatsApp ke " + k.nama)
+            return Pembuka.buka(ctx, i, "Panggilan WhatsApp ke " + k.nama) +
+                " WhatsApp mungkin meminta konfirmasi di layarnya. Asta tidak bisa mengakhiri panggilan WhatsApp."
+        }
+        val i = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/" + k.nomor))
+        i.setPackage(WA)
+        CatatanAsta.tulis(ctx, "Membuka chat WhatsApp " + k.nama + " (baris panggilan tidak ditemukan)")
+        return "Nomor " + k.nama + " belum terhubung dengan WhatsApp di buku kontak ponsel, atau izin kontak belum diberikan, jadi panggilan langsung tidak bisa dimulai. " +
+            Pembuka.buka(ctx, i, "Chat WhatsApp " + k.nama) + " Pengguna bisa mengetuk ikon telepon di sana."
+    }
+}
