@@ -14,10 +14,9 @@ import android.text.InputType
 import android.util.Base64
 import android.view.Gravity
 import android.view.View
-import android.widget.Button
 import android.widget.EditText
-import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
+import android.widget.PopupMenu
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
@@ -28,8 +27,8 @@ class MainActivity : Activity(), Asta.Pendengar {
     private lateinit var gulir: ScrollView
     private lateinit var kolom: EditText
     private lateinit var status: TextView
-    private lateinit var tMik: Button
-    private lateinit var tSuara: Button
+    private lateinit var tMik: TextView
+    private lateinit var tMenu: TextView
     private lateinit var chip: TextView
     private var lampiran: Lampiran? = null
     private var gelAsta: TextView? = null
@@ -50,67 +49,78 @@ class MainActivity : Activity(), Asta.Pendengar {
         akar.orientation = LinearLayout.VERTICAL
         akar.setBackgroundColor(Warna.LATAR)
 
+        // Kepala: nama dan keadaan di kiri, satu menu di kanan.
         val kepala = LinearLayout(this)
         kepala.orientation = LinearLayout.HORIZONTAL
         kepala.gravity = Gravity.CENTER_VERTICAL
-        kepala.setPadding(dp(16), dp(14), dp(16), dp(4))
-        kepala.addView(buatTeks("A S T A", 20f, Warna.CYAN, true), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        status = buatTeks("SIAGA", 12f, Warna.REDUP)
-        kepala.addView(status)
+        kepala.setPadding(dp(20), dp(16), dp(8), dp(10))
+        val judul = LinearLayout(this)
+        judul.orientation = LinearLayout.VERTICAL
+        val nama = buatTeks("Asta", 24f, Warna.TEKS, true)
+        nama.letterSpacing = 0.12f
+        nama.setPadding(0, 0, 0, 0)
+        judul.addView(nama)
+        status = buatTeks("Siaga", 12f, Warna.REDUP)
+        status.setPadding(0, 0, 0, 0)
+        judul.addView(status)
+        kepala.addView(judul, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        tMenu = datar("Menu") { bukaMenu() }
+        kepala.addView(tMenu)
         akar.addView(kepala)
 
-        val baris = LinearLayout(this)
-        baris.orientation = LinearLayout.HORIZONTAL
-        baris.setPadding(dp(8), 0, dp(8), dp(4))
-        tSuara = mini("") {
-            val baru = !Setelan.bool(this, "suara", true)
-            Setelan.simpanBool(this, "suara", baru)
-            if (!baru) Suara.berhenti()
-            segarkanSuara()
-        }
-        baris.addView(tSuara)
-        baris.addView(mini("Catatan") { startActivity(Intent(this, CatatanActivity::class.java)) })
-        baris.addView(mini("Pengingat") { startActivity(Intent(this, PengingatActivity::class.java)) })
-        baris.addView(mini("Kontak") { startActivity(Intent(this, KontakActivity::class.java)) })
-        baris.addView(mini("Izin") { startActivity(Intent(this, IzinActivity::class.java)) })
-        baris.addView(mini("Setelan") { startActivity(Intent(this, SetelanActivity::class.java)) })
-        val gulirMenu = HorizontalScrollView(this)
-        gulirMenu.isHorizontalScrollBarEnabled = false
-        gulirMenu.addView(baris)
-        akar.addView(gulirMenu)
+        val garis = View(this)
+        garis.background = GradientDrawable(
+            GradientDrawable.Orientation.LEFT_RIGHT,
+            intArrayOf(Warna.CYAN, Warna.UNGU, Color.TRANSPARENT),
+        )
+        garis.alpha = 0.55f
+        akar.addView(garis, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)))
 
         gulir = ScrollView(this)
+        gulir.isVerticalScrollBarEnabled = false
         log = LinearLayout(this)
         log.orientation = LinearLayout.VERTICAL
-        log.setPadding(dp(12), dp(4), dp(12), dp(12))
+        log.setPadding(dp(16), dp(8), dp(16), dp(16))
         gulir.addView(log)
         akar.addView(gulir, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
-        chip = buatTeks("", 13f, Warna.AMBER)
+        chip = buatTeks("", 13f, Warna.CYAN)
         chip.visibility = View.GONE
-        chip.setPadding(dp(16), dp(4), dp(16), dp(4))
+        chip.setPadding(dp(20), dp(6), dp(20), dp(6))
         chip.setOnClickListener { lampiran = null; chip.visibility = View.GONE }
         akar.addView(chip)
 
+        // Kolom masukan: satu kapsul berisi lampiran, teks, dan mik; tombol kirim di luarnya.
         val masuk = LinearLayout(this)
         masuk.orientation = LinearLayout.HORIZONTAL
         masuk.gravity = Gravity.CENTER_VERTICAL
-        masuk.setPadding(dp(8), dp(4), dp(8), dp(8))
-        masuk.addView(mini("+") { pilihBerkas() })
-        tMik = mini("Mik") { ketukMik() }
-        masuk.addView(tMik)
+        masuk.setPadding(dp(12), dp(6), dp(12), dp(12))
+        val kapsul = LinearLayout(this)
+        kapsul.orientation = LinearLayout.HORIZONTAL
+        kapsul.gravity = Gravity.CENTER_VERTICAL
+        kapsul.background = kotak(Warna.PERMUKAAN, 24, Warna.GARIS)
+        kapsul.setPadding(dp(4), dp(2), dp(4), dp(2))
+        kapsul.addView(datar("Lampir") { pilihBerkas() })
         kolom = EditText(this)
         kolom.hint = "Ketik pesan"
+        kolom.textSize = 15f
+        kolom.background = null
+        kolom.setPadding(dp(6), dp(10), dp(6), dp(10))
         kolom.setTextColor(Warna.TEKS)
         kolom.setHintTextColor(Warna.REDUP)
         kolom.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
         kolom.maxLines = 4
-        masuk.addView(kolom, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        masuk.addView(mini("Kirim") { kirim() })
+        kapsul.addView(kolom, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        tMik = datar("Mik") { ketukMik() }
+        kapsul.addView(tMik)
+        masuk.addView(kapsul, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        val tombolKirim = buatTombol("Kirim", true) { kirim() }
+        val lpK = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(48))
+        lpK.leftMargin = dp(8)
+        masuk.addView(tombolKirim, lpK)
         akar.addView(masuk)
         setContentView(akar)
 
-        segarkanSuara()
         val lama = Otak.salinan(this)
         if (lama.isEmpty()) tambah("info", "Asta siap. Ketik atau bicara.")
         for ((dari, teks) in lama) tambah(dari, teks)
@@ -129,6 +139,7 @@ class MainActivity : Activity(), Asta.Pendengar {
     override fun onStart() {
         super.onStart()
         Asta.layarTampil = true
+        Gelembung.sembunyi()
         Asta.daftarkan(this)
         keadaan(Asta.keadaan)
         AsService.mulai(this)
@@ -138,20 +149,48 @@ class MainActivity : Activity(), Asta.Pendengar {
 
     override fun onStop() {
         Asta.layarTampil = false
+        if (Setelan.bool(this, "gelembung", false) && Setelan.bool(this, "latar", true) && !Izin.dijeda(this) && Gelembung.bisa(this)) Gelembung.tampil(this)
         Asta.lepas(this)
         super.onStop()
     }
 
-    private fun mini(teks: String, aksi: () -> Unit): Button {
-        val b = buatTombol(teks, aksi)
-        b.textSize = 12f
-        b.minWidth = 0
-        b.minimumWidth = 0
-        return b
+    /** Tombol teks tanpa latar, untuk aksi kecil di kepala dan kolom masukan. */
+    private fun datar(teks: String, aksi: () -> Unit): TextView {
+        val t = TextView(this)
+        t.text = teks
+        t.textSize = 14f
+        t.setTextColor(Warna.CYAN)
+        t.gravity = Gravity.CENTER
+        t.setPadding(dp(12), dp(10), dp(12), dp(10))
+        t.setOnClickListener { aksi() }
+        return t
     }
 
-    private fun segarkanSuara() {
-        tSuara.text = if (Setelan.bool(this, "suara", true)) "Suara: ON" else "Suara: OFF"
+    private fun bukaMenu() {
+        val p = PopupMenu(this, tMenu)
+        val suaraNyala = Setelan.bool(this, "suara", true)
+        p.menu.add(0, 1, 0, "Catatan")
+        p.menu.add(0, 2, 1, "Pengingat")
+        p.menu.add(0, 3, 2, "Kontak")
+        p.menu.add(0, 4, 3, "Izin")
+        p.menu.add(0, 5, 4, if (suaraNyala) "Matikan suara" else "Nyalakan suara")
+        p.menu.add(0, 6, 5, "Setelan")
+        p.setOnMenuItemClickListener {
+            when (it.itemId) {
+                1 -> startActivity(Intent(this, CatatanActivity::class.java))
+                2 -> startActivity(Intent(this, PengingatActivity::class.java))
+                3 -> startActivity(Intent(this, KontakActivity::class.java))
+                4 -> startActivity(Intent(this, IzinActivity::class.java))
+                5 -> {
+                    Setelan.simpanBool(this, "suara", !suaraNyala)
+                    if (suaraNyala) Suara.berhenti()
+                    Toast.makeText(this, if (suaraNyala) "Suara dimatikan." else "Suara dinyalakan.", Toast.LENGTH_SHORT).show()
+                }
+                6 -> startActivity(Intent(this, SetelanActivity::class.java))
+            }
+            true
+        }
+        p.show()
     }
 
     private fun gulirBawah() {
@@ -162,34 +201,39 @@ class MainActivity : Activity(), Asta.Pendengar {
         val t = TextView(this)
         t.text = teks
         t.textSize = 15f
+        t.setLineSpacing(0f, 1.15f)
         t.setTextIsSelectable(true)
-        val lat = GradientDrawable()
-        lat.cornerRadius = dp(14).toFloat()
+        val r = dp(18).toFloat()
+        val s = dp(5).toFloat()
         val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        lp.topMargin = dp(8)
+        lp.topMargin = dp(10)
         when (dari) {
             "saya" -> {
-                lat.setColor(Color.parseColor("#12385a"))
-                t.setTextColor(Warna.TEKS)
+                val lat = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Warna.UNGU_TUA, Warna.BIRU_TUA))
+                lat.cornerRadii = floatArrayOf(r, r, r, r, s, s, r, r)
+                t.background = lat
+                t.setTextColor(Color.WHITE)
                 lp.gravity = Gravity.END
-                lp.leftMargin = dp(48)
+                lp.leftMargin = dp(56)
             }
             "asta" -> {
-                lat.setColor(Color.parseColor("#0a1c2e"))
-                lat.setStroke(dp(1), Color.parseColor("#1a4a6e"))
+                val lat = GradientDrawable()
+                lat.setColor(Warna.PERMUKAAN)
+                lat.setStroke(dp(1), Warna.GARIS)
+                lat.cornerRadii = floatArrayOf(r, r, r, r, r, r, s, s)
+                t.background = lat
                 t.setTextColor(Warna.TEKS)
                 lp.gravity = Gravity.START
-                lp.rightMargin = dp(48)
+                lp.rightMargin = dp(40)
             }
             else -> {
-                lat.setColor(Color.TRANSPARENT)
                 t.setTextColor(Warna.REDUP)
                 t.textSize = 12f
+                t.gravity = Gravity.CENTER_HORIZONTAL
                 lp.gravity = Gravity.CENTER_HORIZONTAL
             }
         }
-        t.background = lat
-        t.setPadding(dp(12), dp(8), dp(12), dp(8))
+        if (dari == "saya" || dari == "asta") t.setPadding(dp(14), dp(10), dp(14), dp(10)) else t.setPadding(dp(8), dp(4), dp(8), dp(4))
         log.addView(t, lp)
         gulirBawah()
         return t
@@ -295,12 +339,17 @@ class MainActivity : Activity(), Asta.Pendengar {
     }
 
     override fun keadaan(k: String) {
-        status.text = k.uppercase()
+        status.text = when (k) {
+            "dengar" -> "Mendengarkan"
+            "berpikir" -> "Berpikir"
+            "bicara" -> "Berbicara"
+            else -> "Siaga"
+        }
         status.setTextColor(
             when (k) {
-                "dengar" -> Color.parseColor("#4cff9a")
-                "berpikir" -> Warna.AMBER
-                "bicara" -> Color.parseColor("#6aa8ff")
+                "dengar" -> Color.parseColor("#5CE0B0")
+                "berpikir" -> Warna.UNGU
+                "bicara" -> Warna.CYAN
                 else -> Warna.REDUP
             }
         )

@@ -11,8 +11,8 @@ android {
         applicationId = "id.asta.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 5
-        versionName = "1.2.1"
+        versionCode = 7
+        versionName = "1.3"
     }
 
     // Kunci tanda tangan tetap supaya APK baru bisa menimpa APK lama tanpa mencopot.

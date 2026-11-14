@@ -29,6 +29,8 @@ object Gelembung {
 
     fun bisa(ctx: Context): Boolean = Settings.canDrawOverlays(ctx)
 
+    val terlihat: Boolean get() = akar != null
+
     private fun warna(k: String): Int = when (k) {
         "dengar" -> Color.parseColor("#4cff9a")
         "berpikir" -> Color.parseColor("#ffb347")
@@ -85,9 +87,9 @@ object Gelembung {
             p.maxLines = 8
             p.visibility = View.GONE
             val latarPanel = GradientDrawable()
-            latarPanel.setColor(Color.parseColor("#F2061423"))
+            latarPanel.setColor(Color.parseColor("#F20E1430"))
             latarPanel.cornerRadius = app.dp(14).toFloat()
-            latarPanel.setStroke(app.dp(1), Warna.CYAN)
+            latarPanel.setStroke(app.dp(1), Warna.GARIS)
             p.background = latarPanel
             p.setOnClickListener {
                 p.visibility = View.GONE
@@ -105,8 +107,8 @@ object Gelembung {
             b.setTypeface(b.typeface, android.graphics.Typeface.BOLD)
             val latarBulat = GradientDrawable()
             latarBulat.shape = GradientDrawable.OVAL
-            latarBulat.setColor(Color.parseColor("#E6030A14"))
-            latarBulat.setStroke(app.dp(2), Warna.CYAN)
+            latarBulat.setColor(Color.parseColor("#E6070B1A"))
+            latarBulat.setStroke(app.dp(2), Warna.UNGU)
             b.background = latarBulat
             val ukuran = app.dp(56)
             val lpB = LinearLayout.LayoutParams(ukuran, ukuran)

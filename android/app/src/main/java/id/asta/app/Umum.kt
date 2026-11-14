@@ -1,7 +1,10 @@
 package id.asta.app
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.graphics.Typeface
 import android.view.ViewGroup
 import android.widget.Button
@@ -24,11 +27,17 @@ object K {
 }
 
 object Warna {
-    val LATAR: Int = Color.parseColor("#030a14")
-    val CYAN: Int = Color.parseColor("#33d6ff")
-    val TEKS: Int = Color.parseColor("#d6ebff")
-    val REDUP: Int = Color.parseColor("#7f9bb5")
-    val AMBER: Int = Color.parseColor("#ffb347")
+    val LATAR: Int = Color.parseColor("#070B1A")
+    val PERMUKAAN: Int = Color.parseColor("#0E1430")
+    val PERMUKAAN2: Int = Color.parseColor("#151D42")
+    val GARIS: Int = Color.parseColor("#262F63")
+    val CYAN: Int = Color.parseColor("#5CC8FF")
+    val UNGU: Int = Color.parseColor("#8B6CFF")
+    val TEKS: Int = Color.parseColor("#E8EDFF")
+    val REDUP: Int = Color.parseColor("#8C97C2")
+    val AMBER: Int = Color.parseColor("#FFB347")
+    val UNGU_TUA: Int = Color.parseColor("#6B4DF0")
+    val BIRU_TUA: Int = Color.parseColor("#3F7BF0")
 }
 
 object Format {
@@ -71,10 +80,32 @@ fun Context.buatTeks(isi: String, ukuran: Float, warna: Int, tebal: Boolean = fa
     return t
 }
 
-fun Context.buatTombol(isi: String, aksi: () -> Unit): Button {
+fun Context.kotak(warna: Int, radius: Int, garis: Int = 0): GradientDrawable {
+    val g = GradientDrawable()
+    g.setColor(warna)
+    g.cornerRadius = dp(radius).toFloat()
+    if (garis != 0) g.setStroke(dp(1), garis)
+    return g
+}
+
+/** Tombol bergaya satu sistem: permukaan gelap bergaris tipis, atau (utama) gradasi ungu ke biru. */
+fun Context.buatTombol(isi: String, utama: Boolean = false, aksi: () -> Unit): Button {
     val b = Button(this)
     b.text = isi
     b.setAllCaps(false)
+    b.textSize = 14f
+    b.setTextColor(if (utama) Color.WHITE else Warna.TEKS)
+    b.stateListAnimator = null
+    b.elevation = 0f
+    b.minHeight = dp(44)
+    b.minimumHeight = dp(44)
+    b.setPadding(dp(16), 0, dp(16), 0)
+    val dasar: GradientDrawable = if (utama) {
+        val g = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Warna.UNGU_TUA, Warna.BIRU_TUA))
+        g.cornerRadius = dp(12).toFloat()
+        g
+    } else kotak(Warna.PERMUKAAN2, 12, Warna.GARIS)
+    b.background = RippleDrawable(ColorStateList.valueOf(Color.parseColor("#33FFFFFF")), dasar, null)
     b.setOnClickListener { aksi() }
     return b
 }

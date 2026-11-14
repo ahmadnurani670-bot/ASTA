@@ -1,12 +1,13 @@
 package id.asta.app
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import java.util.Locale
 
 /** Tindakan Asta terhadap aplikasi lain. Setiap tindakan memeriksa tingkat izin, lalu dicatat di log. */
 object Aksi {
-    class Apl(val label: String, val pkg: String)
+    class Apl(val label: String, val pkg: String, val komponen: ComponentName? = null)
     private class Hasil(val apl: Apl?, val galat: String?)
 
     @Suppress("DEPRECATION")
@@ -14,24 +15,55 @@ object Aksi {
         val pm = ctx.packageManager
         val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         return pm.queryIntentActivities(i, 0)
-            .map { Apl(it.loadLabel(pm).toString(), it.activityInfo.packageName) }
+            .map { Apl(it.loadLabel(pm).toString(), it.activityInfo.packageName, ComponentName(it.activityInfo.packageName, it.activityInfo.name)) }
             .filter { it.pkg != ctx.packageName }
             .distinctBy { it.pkg }
             .sortedBy { it.label.lowercase(Locale.ROOT) }
     }
 
+    private fun norm(t: String): String = t.lowercase(Locale.ROOT).filter { it.isLetterOrDigit() }
+
+    /** Singkatan yang sering diucapkan, dipetakan ke potongan nama aplikasi atau paket. */
+    private val alias = mapOf(
+        "wa" to listOf("whatsapp"), "ig" to listOf("instagram"), "yt" to listOf("youtube"), "fb" to listOf("facebook"),
+        "gmaps" to listOf("maps"), "peta" to listOf("maps"), "kamera" to listOf("camera", "kamera"),
+        "browser" to listOf("chrome", "browser", "peramban", "firefox", "edge", "opera", "brave", "samsunginternet"),
+        "peramban" to listOf("chrome", "browser", "peramban", "firefox", "edge", "opera", "brave", "samsunginternet"),
+        "internet" to listOf("chrome", "browser", "peramban", "samsunginternet"),
+        "galeri" to listOf("gallery", "galeri", "foto", "photos"), "foto" to listOf("photos", "foto", "gallery", "galeri"),
+        "pesan" to listOf("messages", "pesan", "sms"), "telepon" to listOf("phone", "telepon", "dialer"),
+        "kontak" to listOf("contacts", "kontak"), "kalkulator" to listOf("calculator", "kalkulator"),
+        "jam" to listOf("clock", "jam"), "kalender" to listOf("calendar", "kalender"),
+    )
+
+    private fun skor(a: Apl, q: String): Int {
+        val l = norm(a.label)
+        val p = a.pkg.lowercase(Locale.ROOT).filter { it.isLetterOrDigit() }
+        if (l.isEmpty()) return 0
+        if (l == q) return 100
+        if (l.startsWith(q)) return 80 - minOf(30, l.length - q.length)
+        if (l.contains(q)) return 60
+        if (q.length >= 4 && q.contains(l) && l.length >= 3) return 55
+        if (q.length >= 4 && p.contains(q)) return 40
+        return 0
+    }
+
     private fun cari(ctx: Context, nama: String): Hasil {
-        val q = nama.trim().lowercase(Locale.ROOT)
+        val q = norm(nama)
         if (q.isEmpty()) return Hasil(null, "Nama aplikasi kosong.")
         val semua = semuaApl(ctx)
-        val tepat = semua.filter { it.label.lowercase(Locale.ROOT) == q }
-        if (tepat.size == 1) return Hasil(tepat[0], null)
-        val mirip = semua.filter { it.label.lowercase(Locale.ROOT).contains(q) }
-        return when {
-            mirip.size == 1 -> Hasil(mirip[0], null)
-            mirip.isEmpty() -> Hasil(null, "Aplikasi \"" + nama + "\" tidak ditemukan.")
-            else -> Hasil(null, "Ada beberapa aplikasi yang cocok: " + mirip.take(5).joinToString(", ") { it.label } + ". Sebutkan nama yang lebih tepat.")
+        val kunci = (alias[q] ?: emptyList()).ifEmpty { listOf(q) }
+        var terbaik = 0
+        val nilai = HashMap<String, Int>()
+        for (a in semua) {
+            var n = 0
+            for (k in kunci) n = maxOf(n, skor(a, k))
+            if (n > 0) { nilai[a.pkg] = n; if (n > terbaik) terbaik = n }
         }
+        if (terbaik == 0) return Hasil(null, "Aplikasi \"" + nama + "\" tidak ditemukan di ponsel ini.")
+        val teratas = semua.filter { nilai[it.pkg] == terbaik }
+        // Kalau beberapa cocok sama baik, ambil yang labelnya paling pendek; persetujuan selalu menyebut nama aplikasinya.
+        return Hasil(teratas.minByOrNull { it.label.length }, null)
     }
 
     private const val JEDA = "Asta sedang dihentikan oleh pengguna, jadi tidak bisa menyentuh aplikasi lain."
@@ -53,7 +85,9 @@ object Aksi {
             CatatanAsta.tulis(ctx, "DITOLAK buka " + a.label + " (izin tertutup)")
             return a.label + " belum diizinkan untuk Asta. Pengguna bisa mengubahnya di layar Izin Asta."
         }
-        val i = ctx.packageManager.getLaunchIntentForPackage(a.pkg) ?: return a.label + " tidak bisa dibuka."
+        val i = (ctx.packageManager.getLaunchIntentForPackage(a.pkg)
+            ?: a.komponen?.let { Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(it) })
+            ?: return a.label + " tidak bisa dibuka."
         CatatanAsta.tulis(ctx, "Membuka " + a.label)
         return Pembuka.buka(ctx, i, a.label)
     }

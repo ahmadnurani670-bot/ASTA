@@ -33,6 +33,16 @@ class DiagnosaActivity : Activity() {
         isi.addView(buatTombol("2. Periksa kalender") { periksaKalender() }, paramLebar())
         isi.addView(buatTombol("3. Tes tambah lalu hapus acara") { tesAcara() }, paramLebar())
         isi.addView(buatTombol("4. Periksa WhatsApp dan kontak") { periksaWa() }, paramLebar())
+        isi.addView(buatTombol("5. Tes buka browser dari latar belakang") { tesLatar("Browser") {
+            Pembuka.buka(this, android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com")), "Browser")
+        } }, paramLebar())
+        isi.addView(buatTombol("6. Tes buka aplikasi dari latar belakang") { tesLatar("Aplikasi") {
+            val a = Aksi.semuaApl(this).firstOrNull { it.label.contains("Kalkulator", true) || it.label.contains("Calculator", true) || it.label.contains("Jam", true) || it.label.contains("Clock", true) }
+            if (a == null) "Tidak ada aplikasi tes (Kalkulator/Jam) di ponsel ini." else {
+                val i = packageManager.getLaunchIntentForPackage(a.pkg)
+                if (i == null) a.label + " tidak punya pintu masuk." else Pembuka.buka(this, i, a.label)
+            }
+        } }, paramLebar())
         hasil = buatTeks("", 13f, Warna.TEKS)
         hasil.setTextIsSelectable(true)
         isi.addView(hasil, paramLebar(16))
@@ -80,6 +90,16 @@ class DiagnosaActivity : Activity() {
                 r += "\nAcara tes sudah dihapus lagi. (nomor $id)"
             }
             runOnUiThread { hasil.text = r }
+        }.start()
+    }
+
+    /** Menunggu 8 detik supaya pengguna sempat ke layar utama, lalu mencoba membuka sesuatu seperti saat Asta di latar belakang. */
+    private fun tesLatar(nama: String, aksi: () -> String) {
+        hasil.text = "Ketuk tombol Beranda sekarang. Dalam 8 detik Asta akan mencoba membuka $nama. Kembali ke sini sesudahnya untuk melihat hasil."
+        Thread {
+            Thread.sleep(8000)
+            val r = try { aksi() } catch (e: Exception) { "Galat: " + e.javaClass.simpleName + " " + (e.message ?: "") }
+            runOnUiThread { hasil.text = "Hasil tes $nama:\n" + r }
         }.start()
     }
 
